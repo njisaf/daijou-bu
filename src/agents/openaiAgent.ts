@@ -277,9 +277,9 @@ Your goal is to propose a strategic rule change that helps you win while followi
    * @private
    */
   private buildProposalPrompt(gameSnapshot: GameSnapshot): string {
-    return `Please propose a new rule change. Your response must be in this exact format:
+    return `Please propose a new rule change. Your response must be in this exact format (DO NOT include an ID number):
 
-### Proposal [number]
+### Proposal
 Type: [Add|Amend|Repeal|Transmute]
 Number: [rule number]
 Text: "[rule text]"
@@ -335,13 +335,13 @@ Your vote:`;
     
     // If response doesn't start with ###, add it
     if (!cleaned.startsWith('### Proposal')) {
-      // Try to extract components and reformat
+      // Try to extract components and reformat (no ID needed)
       const typeMatch = cleaned.match(/Type:\s*(Add|Amend|Repeal|Transmute)/i);
       const numberMatch = cleaned.match(/Number:\s*(\d+)/);
       const textMatch = cleaned.match(/Text:\s*["'](.+)["']/s);
       
       if (typeMatch && numberMatch && textMatch) {
-        cleaned = `### Proposal ${numberMatch[1]}\nType: ${typeMatch[1]}\nNumber: ${numberMatch[1]}\nText: "${textMatch[1]}"`;
+        cleaned = `### Proposal\nType: ${typeMatch[1]}\nNumber: ${numberMatch[1]}\nText: "${textMatch[1]}"`;
       }
     }
     

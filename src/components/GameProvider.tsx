@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { GameModel } from '../models/GameModel';
-import { DEFAULT_CONFIG } from '../config';
+import { DEFAULT_CONFIG, getGameConfig } from '../config';
 import { TurnOrchestrator } from '../orchestrator/TurnOrchestrator';
 import { SnapshotLogger } from '../logging/SnapshotLogger';
-import { MockMCPService } from '../mocks/MockMCPService';
-import { OpenAIAgent } from '../agents/openaiAgent';
+import { getAgentFactory } from '../agents/AgentFactory';
 import { createPersistence, type IGamePersistence } from '../persistence';
 
 /**
@@ -83,38 +82,43 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP })
     });
   });
 
-  // Create LLM service based on environment configuration
-  const [mcpService] = useState(() => {
+  // Create LLM service using AgentFactory which properly handles agent type detection
+  const [agentFactory] = useState(() => {
     console.log('🚀 [GameProvider] Initializing LLM service...', new Date().toISOString());
+    const config = getGameConfig();
+    console.log('🚀 [GameProvider] Agent type from config:', config.agent.type);
+    console.log('🚀 [GameProvider] AGENT_TYPE env var:', process.env.AGENT_TYPE || 'not set');
+    console.log('🚀 [GameProvider] LLM_TOKEN present:', !!process.env.LLM_TOKEN);
+    console.log('🚀 [GameProvider] OLLAMA_BASE_URL present:', !!process.env.OLLAMA_BASE_URL);
+    console.log('🚀 [GameProvider] OLLAMA_MODEL present:', !!process.env.OLLAMA_MODEL);
     
-    if (process.env.LLM_TOKEN) {
-      console.log('🚀 [GameProvider] OpenAI API key detected - using real LLM integration');
-      console.log('🚀 [GameProvider] LLM_TOKEN present:', !!process.env.LLM_TOKEN);
-      console.log('🚀 [GameProvider] Service type: OpenAI GPT-3.5-turbo');
+    return getAgentFactory();
+  });
+
+  // Create adapter to make AgentFactory compatible with MCPService interface
+  const [mcpServiceAdapter] = useState(() => {
+    return {
+      // MCPService expects: propose(prompt, gameSnapshot)
+      // AgentFactory provides: propose(gameSnapshot, prompt?)
+      propose: (prompt: string, gameSnapshot: any) => {
+        return agentFactory.propose(gameSnapshot, prompt);
+      },
       
-      const openaiAgent = new OpenAIAgent();
-      if (openaiAgent.isAvailable()) {
-        console.log('✅ [GameProvider] OpenAI agent initialized successfully');
-        console.log('✅ [GameProvider] Real AI gameplay ENABLED');
-        return openaiAgent;
-      } else {
-        console.warn('⚠️ [GameProvider] OpenAI agent not available, falling back to mock service');
-        console.warn('⚠️ [GameProvider] Reason: API key validation failed');
+      // Both have same signature: vote(proposal, gameSnapshot)
+      vote: (proposal: string, gameSnapshot: any) => {
+        return agentFactory.vote(proposal, gameSnapshot);
+      },
+      
+      // Both have same signature: getCurrentSeed()
+      getCurrentSeed: () => {
+        return agentFactory.getCurrentSeed();
       }
-    } else {
-      console.log('🚀 [GameProvider] No OpenAI API key - using mock LLM service');
-      console.log('🚀 [GameProvider] Service type: Deterministic Mock');
-      console.log('🚀 [GameProvider] Real AI gameplay DISABLED');
-    }
-    
-    console.log('🎭 [GameProvider] Falling back to MockMCPService');
-    console.log('🎭 [GameProvider] This will provide predictable, deterministic responses');
-    return new MockMCPService();
+    };
   });
 
   const [logger] = useState(() => new SnapshotLogger(gameModel));
   const [orchestrator] = useState(() => {
-    return new TurnOrchestrator(gameModel, mcpService, logger);
+    return new TurnOrchestrator(gameModel, mcpServiceAdapter, logger);
   });
   const [persistence, setPersistence] = useState<IGamePersistence | null>(null);
   const [isRunning, setIsRunning] = useState(false);

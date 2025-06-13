@@ -210,9 +210,81 @@ export const DEFAULT_CONFIG: GameConfig = {
 
 For development-specific information including project status, contribution guidelines, and technical history, see [DEVELOPMENT.md](./DEVELOPMENT.md).
 
-### Getting Started with OpenAI
+### Getting Started with LLM Agents
 
-#### 1. Obtain an OpenAI API Key
+Daijō-bu supports three agent types: **OpenAI** (cloud), **Ollama** (local), and **Mock** (deterministic). Choose the one that best fits your needs.
+
+#### Option 1: Ollama (Local LLM) - **Recommended**
+
+Local LLM with no API costs or rate limits.
+
+##### 1. Install Ollama
+
+```bash
+# macOS
+brew install ollama
+
+# Linux
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Windows
+# Download from https://ollama.ai/download
+```
+
+##### 2. Start Ollama Service
+
+```bash
+# Start the Ollama service
+ollama serve
+```
+
+##### 3. Download a Model
+
+```bash
+# Download Mistral 7B (recommended, ~4GB)
+ollama pull mistral:7b-instruct
+
+# Alternative models:
+# ollama pull llama2:7b-chat      # Llama 2 7B (~4GB)
+# ollama pull llama2:13b-chat     # Llama 2 13B (~7GB, better quality)
+# ollama pull codellama:7b-code   # Code-specialized model
+```
+
+##### 4. Configure Environment Variables
+
+```bash
+# Option A: Set environment variables
+export AGENT_TYPE=ollama
+export OLLAMA_BASE_URL=http://localhost:11434
+export OLLAMA_MODEL=mistral:7b-instruct
+
+# Option B: Create .env file
+cat > .env << EOF
+AGENT_TYPE=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=mistral:7b-instruct
+EOF
+```
+
+##### 5. Start the Game
+
+```bash
+npm run dev
+```
+
+You should see:
+```
+🦙 [Ollama] Local LLM integration initialized
+🦙 [Ollama] Base URL: http://localhost:11434
+🦙 [Ollama] Model: mistral:7b-instruct
+✅ [Ollama] Ready for LLM requests
+```
+
+#### Option 2: OpenAI (Cloud)
+
+Remote LLM with high quality but usage costs.
+
+##### 1. Obtain an OpenAI API Key
 
 1. Visit [OpenAI's website](https://platform.openai.com/) and create an account
 2. Navigate to the [API keys section](https://platform.openai.com/api-keys)
@@ -220,53 +292,78 @@ For development-specific information including project status, contribution guid
 4. **Important**: Copy the key immediately - you won't be able to see it again
 5. Set up billing in your OpenAI account (required for API access)
 
-#### 2. Configure Environment Variables
-
-Create a `.env` file in the project root (this file is gitignored for security):
+##### 2. Configure Environment Variables
 
 ```bash
-# Copy the example file and edit it
-cp .env.example .env
-
-# Edit .env file with your API key
-# .env file
-LLM_TOKEN=sk-your-openai-api-key-here
-```
-
-Or set the environment variable directly:
-
-```bash
-# For development session
+# Option A: Set environment variables
+export AGENT_TYPE=openai
 export LLM_TOKEN=sk-your-openai-api-key-here
-npm run dev
 
-# For production deployment
-LLM_TOKEN=sk-your-openai-api-key-here npm run build
+# Option B: Create .env file
+cat > .env << EOF
+AGENT_TYPE=openai
+LLM_TOKEN=sk-your-openai-api-key-here
+EOF
 ```
 
-#### 3. Verify Integration
+#### Option 3: Mock Agent (Testing)
 
-Start the development server and check the browser console:
+Deterministic responses for development and testing.
+
+```bash
+# Set agent type to mock (or omit for auto-detection)
+export AGENT_TYPE=mock
+npm run dev
+```
+
+### Agent Auto-Detection and Fallback
+
+The game automatically detects which agent to use based on your configuration:
+
+1. **Explicit Configuration**: If `AGENT_TYPE` is set, uses that agent
+2. **Auto-Detection**: Otherwise detects based on available API keys/services
+3. **Automatic Fallback**: If the primary agent fails 3 times consecutively, switches to mock agent
+
+### Verify Integration
+
+Start the development server and check the console output:
 
 ```bash
 npm run dev
+```
+
+**With Ollama configured:**
+```
+🦙 [Ollama] Local LLM integration initialized
+🦙 [Ollama] Base URL: http://localhost:11434
+🦙 [Ollama] Model: mistral:7b-instruct
+✅ [Ollama] Ready for LLM requests
+🏭 [AgentFactory] Initialized with ollama agent
 ```
 
 **With OpenAI configured:**
 ```
-🚀 [GameProvider] OpenAI API key detected - using real LLM integration
 🤖 [OpenAI] LLM integration initialized
 🤖 [OpenAI] Model: gpt-3.5-turbo
-🤖 [OpenAI] Max tokens: 500
 🤖 [OpenAI] Rate limit: 3 requests/minute (22s delay between calls)
+🏭 [AgentFactory] Initialized with openai agent
 ```
 
-**Without OpenAI (fallback mode):**
+**With Mock agent (fallback mode):**
 ```
-🚀 [GameProvider] No OpenAI API key - using mock LLM service
 🎭 [MockMCP] Using deterministic mock LLM service
 🎭 [MockMCP] Seed: 1749789060811
-🎭 [MockMCP] Behavior: Deterministic and predictable
+🏭 [AgentFactory] Initialized with mock agent
+```
+
+**Automatic Fallback (on errors):**
+```
+🔄 [AgentFactory] 3 consecutive failures with ollama, switching to mock agent
+🔄 [AgentFactory] ====================================
+🔄 [AgentFactory] AUTOMATIC FALLBACK TO MOCK AGENT
+🔄 [AgentFactory] Primary agent has failed too many times
+🔄 [AgentFactory] Game will continue with deterministic responses
+🔄 [AgentFactory] ====================================
 ```
 
 ### Usage Modes

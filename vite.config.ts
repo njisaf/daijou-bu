@@ -10,6 +10,9 @@ export default defineConfig(({ mode }) => {
     define: {
       // Expose environment variables to client-side code
       'process.env.LLM_TOKEN': JSON.stringify(env.LLM_TOKEN),
+      'process.env.AGENT_TYPE': JSON.stringify(env.AGENT_TYPE),
+      'process.env.OLLAMA_BASE_URL': JSON.stringify(env.OLLAMA_BASE_URL),
+      'process.env.OLLAMA_MODEL': JSON.stringify(env.OLLAMA_MODEL),
     },
   }
 })

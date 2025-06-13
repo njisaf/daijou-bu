@@ -3,11 +3,13 @@ import { TurnOrchestrator } from './TurnOrchestrator';
 import { GameModel } from '../models/GameModel';
 import { DEFAULT_CONFIG } from '../config';
 import { MockMCPService } from '../mocks/MockMCPService';
+import { SnapshotLogger } from '../logging/SnapshotLogger';
 
 describe('TurnOrchestrator', () => {
   let gameModel: typeof GameModel.Type;
   let orchestrator: TurnOrchestrator;
   let mockMcpService: MockMCPService;
+  let mockLogger: SnapshotLogger;
 
   beforeEach(() => {
     // Create a basic game setup
@@ -53,8 +55,11 @@ describe('TurnOrchestrator', () => {
     // Create mock MCP service
     mockMcpService = new MockMCPService();
 
+    // Create mock logger
+    mockLogger = new SnapshotLogger(gameModel);
+
     // Create orchestrator
-    orchestrator = new TurnOrchestrator(gameModel, mockMcpService);
+    orchestrator = new TurnOrchestrator(gameModel, mockMcpService, mockLogger);
   });
 
   describe('initialization', () => {

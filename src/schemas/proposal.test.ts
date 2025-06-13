@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ProposalSchema, parseProposalMarkdown } from './proposal';
+import { ProposalSchema, parseProposalMarkdown, parseProposalMarkdownWithoutId } from './proposal';
 
 describe('ProposalSchema', () => {
   it('should validate a valid proposal object', () => {
@@ -168,5 +168,104 @@ Number: abc
 Text: "Some text"`;
 
     expect(() => parseProposalMarkdown(invalidNumberMarkdown)).toThrow();
+  });
+
+  it('should handle Unicode smart quotes from LLMs', () => {
+    // This reproduces the exact issue with Ollama generating Unicode quotes
+    // U+201C (") and U+201D (") instead of ASCII quotes
+    const unicodeQuoteMarkdown = `### Proposal 204\nType: Add\nNumber: 204\nText: \u201CRule with Unicode smart quotes instead of ASCII quotes.\u201D`;
+
+    const result = parseProposalMarkdown(unicodeQuoteMarkdown);
+    expect(result).toEqual({
+      id: 204,
+      type: 'Add',
+      number: 204,
+      text: 'Rule with Unicode smart quotes instead of ASCII quotes.'
+    });
+  });
+});
+
+describe('parseProposalMarkdownWithoutId', () => {
+  it('should parse valid proposal markdown without ID', () => {
+    const markdown = `### Proposal
+Type: Add
+Number: 301
+Text: "This is a new rule for the game."`;
+
+    const result = parseProposalMarkdownWithoutId(markdown);
+    expect(result).toEqual({
+      type: 'Add',
+      number: 301,
+      text: 'This is a new rule for the game.'
+    });
+  });
+
+  it('should handle different proposal types', () => {
+    const testCases = [
+      { type: 'Add', number: 301 },
+      { type: 'Amend', number: 202 },
+      { type: 'Repeal', number: 203 },
+      { type: 'Transmute', number: 101 }
+    ];
+
+    testCases.forEach(({ type, number }) => {
+      const markdown = `### Proposal
+Type: ${type}
+Number: ${number}
+Text: "Test rule for ${type} operation."`;
+
+      const result = parseProposalMarkdownWithoutId(markdown);
+      expect(result.type).toBe(type);
+      expect(result.number).toBe(number);
+      expect(result.text).toBe(`Test rule for ${type} operation.`);
+    });
+  });
+
+  it('should handle Unicode smart quotes without ID', () => {
+    const unicodeQuoteMarkdown = `### Proposal
+Type: Add
+Number: 301
+Text: \u201CRule with Unicode smart quotes without ID.\u201D`;
+
+    const result = parseProposalMarkdownWithoutId(unicodeQuoteMarkdown);
+    expect(result).toEqual({
+      type: 'Add',
+      number: 301,
+      text: 'Rule with Unicode smart quotes without ID.'
+    });
+  });
+
+  it('should throw error for invalid header without ID', () => {
+    const invalidHeaderMarkdown = `### Wrong Header
+Type: Add
+Number: 301
+Text: "Some text"`;
+
+    expect(() => parseProposalMarkdownWithoutId(invalidHeaderMarkdown)).toThrow('Invalid proposal header: must be "### Proposal"');
+  });
+
+  it('should throw error for missing type field', () => {
+    const missingTypeMarkdown = `### Proposal
+Number: 301
+Text: "Some text"`;
+
+    expect(() => parseProposalMarkdownWithoutId(missingTypeMarkdown)).toThrow('Missing or invalid Type field');
+  });
+
+  it('should throw error for invalid number field', () => {
+    const invalidNumberMarkdown = `### Proposal
+Type: Add
+Number: abc
+Text: "Some text"`;
+
+    expect(() => parseProposalMarkdownWithoutId(invalidNumberMarkdown)).toThrow();
+  });
+
+  it('should throw error for missing text field', () => {
+    const missingTextMarkdown = `### Proposal
+Type: Add
+Number: 301`;
+
+    expect(() => parseProposalMarkdownWithoutId(missingTextMarkdown)).toThrow('Missing or invalid Text field');
   });
 }); 

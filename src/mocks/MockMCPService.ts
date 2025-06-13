@@ -135,14 +135,7 @@ export class MockMCPService implements MCPService {
     
     // Get existing rule numbers to avoid conflicts
     const existingRuleNumbers = new Set(gameSnapshot.rules.map(rule => rule.id));
-    const existingProposalNumbers = new Set(gameSnapshot.proposals.map(proposal => proposal.id));
     
-    // Generate unique proposal ID
-    let proposalId: number;
-    do {
-      proposalId = this.rng.randomInt(1, 1000);
-    } while (existingProposalNumbers.has(proposalId));
-
     // Determine proposal type based on game state and randomness
     const proposalTypes = ['Add', 'Amend', 'Repeal', 'Transmute'];
     
@@ -188,13 +181,13 @@ export class MockMCPService implements MCPService {
       ruleText = this.rng.choice(this.proposalTemplates);
     }
 
-    // Format as markdown
-    const result = `### Proposal ${proposalId}
+    // Format as markdown without ID
+    const result = `### Proposal
 Type: ${proposalType}
 Number: ${ruleNumber}
 Text: "${ruleText}"`;
 
-    console.log(`✅ [MockMCP] Mock proposal generated (ID: ${proposalId})`);
+    console.log(`✅ [MockMCP] Mock proposal generated (Type: ${proposalType}, Number: ${ruleNumber})`);
     return result;
   }
 

@@ -1,7 +1,7 @@
 import type { SnapshotOut } from 'mobx-state-tree';
 import { GameModel, type GamePhase } from '../models/GameModel';
 import { type MCPService, type GameSnapshot } from '../mocks/MockMCPService';
-import { parseProposalMarkdown, type Proposal } from '../schemas/proposal';
+import { parseProposalMarkdown, parseProposalMarkdownWithoutId, type Proposal, type ProposalWithoutId } from '../schemas/proposal';
 import { createProposal } from '../models/ProposalModel';
 import { RuleEngine } from '../engine/RuleEngine';
 import { SnapshotLogger } from '../logging/SnapshotLogger';
@@ -270,11 +270,20 @@ export class TurnOrchestrator {
         `Proposal timeout for player ${currentPlayer.id}`
       );
 
-      // Parse and validate proposal
-      let parsedProposal: Proposal;
+      // Parse and validate proposal (no ID required)
+      let parsedProposal: ProposalWithoutId;
       try {
-        parsedProposal = parseProposalMarkdown(proposalMarkdown);
+        console.log('🔍 [TurnOrchestrator] Received proposal markdown:', proposalMarkdown);
+        console.log('🔍 [TurnOrchestrator] Markdown length:', proposalMarkdown.length);
+        console.log('🔍 [TurnOrchestrator] Markdown line count:', proposalMarkdown.split('\n').length);
+        
+        // Use new parser that doesn't require ID
+        parsedProposal = parseProposalMarkdownWithoutId(proposalMarkdown);
+        console.log('✅ [TurnOrchestrator] Proposal parsed successfully:', parsedProposal);
       } catch (parseError) {
+        console.error('❌ [TurnOrchestrator] Proposal parsing failed for player', currentPlayer.id);
+        console.error('❌ [TurnOrchestrator] Raw proposal text:', proposalMarkdown);
+        console.error('❌ [TurnOrchestrator] Parse error:', parseError);
         throw new OrchestrationError(
           `Invalid proposal format from player ${currentPlayer.id}`,
           currentPlayer.id,
@@ -283,9 +292,8 @@ export class TurnOrchestrator {
         );
       }
 
-      // Create proposal in game model
-      this.gameModel.addProposal({
-        id: parsedProposal.id,
+      // Let GameModel generate unique ID and create the proposal
+      const proposal = this.gameModel.createProposal({
         proposerId: currentPlayer.id,
         type: parsedProposal.type,
         ruleNumber: parsedProposal.number,
@@ -294,6 +302,9 @@ export class TurnOrchestrator {
         votes: [],
         timestamp: Date.now()
       });
+
+      console.log(`✅ [TurnOrchestrator] Proposal ${proposal.id} created successfully`);
+      console.log(`📋 [TurnOrchestrator] Proposal details: ${parsedProposal.type} rule ${parsedProposal.number}`);
 
     } catch (error) {
       // Pause game on any error

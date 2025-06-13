@@ -103,6 +103,20 @@ export const GameModel = types
     },
     
     /**
+     * Get the next unique proposal ID
+     * Starts at 301 and increments from the highest existing proposal ID
+     */
+    get nextProposalId(): number {
+      if (self.proposals.length === 0) {
+        return 301; // Start proposal IDs at 301
+      }
+      
+      // Find the highest existing proposal ID and add 1
+      const maxId = Math.max(...self.proposals.map(p => p.id));
+      return Math.max(maxId + 1, 301); // Ensure we never go below 301
+    },
+    
+    /**
      * Get current game snapshot for MCP services
      */
     get gameSnapshot() {
@@ -139,8 +153,29 @@ export const GameModel = types
      * Add a proposal to the game
      */
     addProposal(proposalData: SnapshotIn<typeof ProposalModel>) {
+      // Check for duplicate proposal IDs
+      const existingProposal = self.proposals.find(p => p.id === proposalData.id);
+      if (existingProposal) {
+        throw new Error(`Proposal with ID ${proposalData.id} already exists`);
+      }
+      
       const proposal = ProposalModel.create(proposalData);
       self.proposals.push(proposal);
+    },
+    
+    /**
+     * Create a proposal with an automatically generated unique ID
+     */
+    createProposal(proposalData: Omit<SnapshotIn<typeof ProposalModel>, 'id'>) {
+      const proposalWithId = {
+        ...proposalData,
+        id: self.nextProposalId
+      };
+      
+      const proposal = ProposalModel.create(proposalWithId);
+      self.proposals.push(proposal);
+      
+      return proposal;
     },
     
     /**

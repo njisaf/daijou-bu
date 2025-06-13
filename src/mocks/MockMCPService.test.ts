@@ -57,8 +57,8 @@ describe('MockMCPService', () => {
       const promptP = 'You are a player in a Nomic game. Propose a rule change.';
       const proposal = service.propose(promptP, gameSnapshot);
 
-      // Should match the expected proposal format
-      expect(proposal).toMatch(/^### Proposal \d+$/m);
+      // Should match the expected proposal format (no ID required)
+      expect(proposal).toMatch(/^### Proposal$/m);
       expect(proposal).toMatch(/^Type: (Add|Amend|Repeal|Transmute)$/m);
       expect(proposal).toMatch(/^Number: \d+$/m);
       expect(proposal).toMatch(/^Text: ".+"$/m);

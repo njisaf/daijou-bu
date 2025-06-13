@@ -7,6 +7,40 @@
  * @see https://github.com/microsoft/TypeScript/wiki/Coding-guidelines#names
  */
 
+// Load environment variables from .env file if available
+// This is important for server-side contexts and testing
+if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  try {
+    require('dotenv').config();
+  } catch (error) {
+    // dotenv not available, continue with existing environment
+  }
+}
+
+/**
+ * Detect agent type from environment variables
+ * Priority: AGENT_TYPE env var > auto-detect from API keys > fallback to mock
+ */
+function getAgentTypeFromEnv(): 'openai' | 'ollama' | 'mock' {
+  // Explicit override
+  const explicitType = process.env.AGENT_TYPE as 'openai' | 'ollama' | 'mock' | undefined;
+  if (explicitType && ['openai', 'ollama', 'mock'].includes(explicitType)) {
+    return explicitType;
+  }
+  
+  // Auto-detect based on available configuration
+  if (process.env.LLM_TOKEN) {
+    return 'openai';
+  }
+  
+  if (process.env.OLLAMA_BASE_URL || process.env.OLLAMA_MODEL) {
+    return 'ollama';
+  }
+  
+  // Default to mock for development/testing
+  return 'mock';
+}
+
 export interface GameConfig {
   /** Victory target score as per Rule 102 */
   victoryTarget: number;
@@ -37,6 +71,15 @@ export interface GameConfig {
   
   /** Whether to enable snapshot logging to console */
   enableSnapshotLogging: boolean;
+  
+  /** Agent type configuration */
+  agent: {
+    /** Type of agent to use ('openai' | 'ollama' | 'mock') */
+    type: 'openai' | 'ollama' | 'mock';
+    
+    /** Maximum concurrent agent requests */
+    concurrency: number;
+  };
 }
 
 /**
@@ -48,11 +91,15 @@ export const DEFAULT_CONFIG: GameConfig = {
   forVoterPoints: 5,           // Scoring on adoption
   againstVoterPenalty: -5,     // Scoring on adoption  
   turnDelayMs: 200,            // Turn delay (default)
-  timeoutMs: 8000,             // Request timeout
+  timeoutMs: 15000,            // Request timeout (increased for Ollama)
   warmupTurns: 5,              // Snapshot mode warmup
   snapshotMode: 'full',        // Start with full snapshots
   debugSnapshots: false,       // Production default
-  enableSnapshotLogging: true  // Enable by default for development
+  enableSnapshotLogging: true, // Enable by default for development
+  agent: {
+    type: getAgentTypeFromEnv(), // Auto-detect from environment
+    concurrency: 4              // Phase 5 Objective 5: Concurrency bump
+  }
 };
 
 /**
