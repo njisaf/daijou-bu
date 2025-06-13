@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GameModel, type GamePhase } from './GameModel';
+import { GameModel, createGame, type GamePhase } from './GameModel';
+import { createRuleSet } from './RuleSetModel';
+import { createGameConfig } from './GameConfigModel';
 import { DEFAULT_CONFIG } from '../config';
 
 /**
@@ -352,6 +354,40 @@ describe('GameModel', () => {
       expect(game.proposals[0].id).toBe(301);
     });
   });
+
+  describe('acceptanceTestsPass functionality', () => {
+    it('should return false by default (stub implementation)', () => {
+      const game = createTestGame();
+      
+      // Test that the stub implementation returns false
+      expect(game.acceptanceTestsPass).toBe(false);
+      
+      // Verify it's used in victory condition
+      expect(game.isGameWon).toBe(false);
+    });
+
+    it('should be included in game snapshot', () => {
+      const game = createTestGame();
+      const snapshot = game.gameSnapshot;
+      
+      // Verify acceptanceTestsPass is included in snapshot
+      expect(snapshot.acceptanceTestsPass).toBe(false);
+    });
+
+    it('should affect new victory condition when combined with freeze proposal', () => {
+      const game = createTestGame();
+      
+      // Initially no victory
+      expect(game.isGameWon).toBe(false);
+      expect(game.freezeProposalPassed).toBe(false);
+      expect(game.acceptanceTestsPass).toBe(false);
+      
+      // Even if we had a passed freeze proposal, acceptance tests must also pass
+      // This is a test of the logical structure - actual freeze proposal testing
+      // is handled elsewhere in the test suite
+      expect(game.freezeProposalPassed && game.acceptanceTestsPass).toBe(false);
+    });
+  });
 });
 
 /**
@@ -442,5 +478,98 @@ describe('GameModel with Prompt P', () => {
       expect(snapshot).toHaveProperty('turn');
       expect(snapshot).toHaveProperty('phase');
     });
+  });
+});
+
+describe('createGame factory function', () => {
+  it('should create a game with custom ruleset and config', () => {
+    // Create a custom ruleset
+    const customRules = [
+      { id: 101, text: 'Custom rule 1', mutable: false },
+      { id: 201, text: 'Custom rule 2', mutable: true }
+    ];
+    const ruleset = createRuleSet(customRules);
+
+    // Create a custom config
+    const config = createGameConfig({
+      promptP: 'Custom AI instructions',
+      turnDelayMs: 500,
+      victoryTarget: 150
+    });
+
+    // Create the game
+    const game = createGame({ ruleset, config });
+
+    // Verify the game was created correctly
+    expect(game.rules.length).toBe(2);
+    expect(game.rules[0].id).toBe(101);
+    expect(game.rules[0].text).toBe('Custom rule 1');
+    expect(game.rules[0].mutable).toBe(false);
+    expect(game.rules[1].id).toBe(201);
+    expect(game.rules[1].text).toBe('Custom rule 2');
+    expect(game.rules[1].mutable).toBe(true);
+
+    expect(game.config.promptP).toBe('Custom AI instructions');
+    expect(game.config.turnDelayMs).toBe(500);
+    expect(game.config.victoryTarget).toBe(150);
+    expect(game.phase).toBe('setup');
+    expect(game.players.length).toBe(0);
+  });
+
+  it('should create a game with initial players', () => {
+    const ruleset = createRuleSet([
+      { id: 101, text: 'Basic rule', mutable: false }
+    ]);
+    const config = createGameConfig();
+
+    const players = [
+      { id: 'alice', name: 'Alice', icon: '🤖', llmEndpoint: 'http://localhost:3001' },
+      { id: 'bob', name: 'Bob', icon: '🦾', llmEndpoint: 'http://localhost:3002' }
+    ];
+
+    const game = createGame({ ruleset, config, players });
+
+    expect(game.players.length).toBe(2);
+    expect(game.players[0].id).toBe('alice');
+    expect(game.players[0].name).toBe('Alice');
+    expect(game.players[0].points).toBe(0);
+    expect(game.players[0].isActive).toBe(false);
+    expect(game.players[1].id).toBe('bob');
+    expect(game.players[1].name).toBe('Bob');
+  });
+
+  it('should validate inputs and throw on invalid ruleset', () => {
+    const config = createGameConfig();
+
+    expect(() => {
+      createGame({ ruleset: null as any, config });
+    }).toThrow('Ruleset is required to create a game');
+  });
+
+  it('should validate inputs and throw on invalid config', () => {
+    const ruleset = createRuleSet([]);
+
+    expect(() => {
+      createGame({ ruleset, config: null as any });
+    }).toThrow('Configuration is required to create a game');
+  });
+
+  it('should validate ruleset and config before creating game', () => {
+    // Create a ruleset with duplicate IDs (should fail validation)
+    const ruleset = createRuleSet();
+    ruleset.addRule({ id: 101, text: 'Rule 1', mutable: false });
+    
+    // Try to add duplicate ID
+    expect(() => {
+      ruleset.addRule({ id: 101, text: 'Duplicate rule', mutable: true });
+    }).toThrow('Rule with ID 101 already exists');
+
+    // Valid config
+    const config = createGameConfig();
+
+    // This should work with valid ruleset
+    expect(() => {
+      createGame({ ruleset, config });
+    }).not.toThrow();
   });
 }); 

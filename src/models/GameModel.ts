@@ -89,6 +89,60 @@ export const GameModel = types
     },
     
     /**
+     * Check if a freeze proposal has been passed
+     * This implements the new victory condition per Stage 6.1 requirements
+     */
+    get freezeProposalPassed(): boolean {
+      // Find freeze proposals (Rule 207 style)
+      const freezeProposals = self.proposals.filter(p => 
+        p.status === 'passed' && 
+        p.type === 'Add' && 
+        p.ruleText.toLowerCase().includes('freeze') && 
+        p.ruleText.toLowerCase().includes('game ends')
+      );
+      
+      return freezeProposals.length > 0;
+    },
+    
+    /**
+     * Check if acceptance tests pass
+     * STUB: This is a placeholder that returns false until Stage 6.4 implementation
+     */
+    get acceptanceTestsPass(): boolean {
+      // TODO: Stage 6.4 - Implement real acceptance test validation
+      // This should check if the current ruleset satisfies all published acceptance tests
+      console.log('🧪 [GameModel] acceptanceTestsPass called - returning false (stub implementation)');
+      return false;
+    },
+    
+    /**
+     * Check if the game has been won according to new victory conditions
+     * New logic: freeze proposal passed AND acceptance tests pass
+     * Legacy logic: player reaches victory target (for backward compatibility)
+     */
+    get isGameWon(): boolean {
+      // New victory condition (Stage 6.1+)
+      const newVictoryCondition = self.freezeProposalPassed && self.acceptanceTestsPass;
+      
+      // Legacy victory condition (for backward compatibility until Stage 6.5)
+      const legacyVictoryCondition = !!self.winner;
+      
+      const gameWon = newVictoryCondition || legacyVictoryCondition;
+      
+      if (gameWon) {
+        console.log('🏆 [GameModel] Victory detected:', {
+          freezeProposalPassed: self.freezeProposalPassed,
+          acceptanceTestsPass: self.acceptanceTestsPass,
+          legacyWinner: self.winner?.name,
+          usedNewLogic: newVictoryCondition,
+          usedLegacyLogic: legacyVictoryCondition
+        });
+      }
+      
+      return gameWon;
+    },
+    
+    /**
      * Check if the game is currently running
      */
     get isRunning() {
@@ -250,9 +304,9 @@ export const GameModel = types
      * Check victory condition and transition to completed if met
      */
     checkVictoryCondition() {
-      const winner = self.winner;
-      if (winner && self.phase === 'playing') {
+      if (self.isGameWon && self.phase === 'playing') {
         self.phase = 'completed';
+        console.log('🏁 [GameModel] Game completed - victory condition met');
       }
     },
     
@@ -377,3 +431,99 @@ export const GameModel = types
       console.log(`📋 [GameModel] Prompt P: "${self.config.promptP}"`);
     }
   })); 
+
+/**
+ * Export type definitions for external use
+ */
+export type IGameModel = Instance<typeof GameModel>;
+export type GameSnapshot = SnapshotOut<typeof GameModel>;
+export type GameModelInput = SnapshotIn<typeof GameModel>;
+
+/**
+ * Factory function to create a new game with custom ruleset and configuration
+ * 
+ * This is the primary factory for creating games with custom rules and settings.
+ * It replaces the hard-coded bootstrap process and allows for flexible game creation.
+ * 
+ * @param options - Game creation options
+ * @param options.ruleset - RuleSetModel instance with rules to load
+ * @param options.config - GameConfigModel instance with configuration
+ * @param options.players - Optional array of players to add immediately
+ * @returns New game model instance ready for setup
+ * 
+ * @example
+ * ```typescript
+ * import { createGame } from './models/GameModel';
+ * import { createRuleSet } from './models/RuleSetModel';
+ * import { createGameConfig } from './models/GameConfigModel';
+ * 
+ * const ruleset = createRuleSet([
+ *   { id: 101, text: "All players must follow the rules.", mutable: false }
+ * ]);
+ * 
+ * const config = createGameConfig({ 
+ *   promptP: "Be strategic but fair", 
+ *   turnDelayMs: 500 
+ * });
+ * 
+ * const game = createGame({ ruleset, config });
+ * ```
+ */
+export function createGame(options: {
+  ruleset: import('./RuleSetModel').IRuleSet;
+  config: import('./GameConfigModel').IGameConfig;
+  players?: Array<{
+    id: string;
+    name: string;
+    icon: string;
+    llmEndpoint: string;
+  }>;
+}): IGameModel {
+  const { ruleset, config, players = [] } = options;
+
+  // Validate inputs
+  if (!ruleset) {
+    throw new Error('Ruleset is required to create a game');
+  }
+  
+  if (!config) {
+    throw new Error('Configuration is required to create a game');
+  }
+
+  // Validate the ruleset and config
+  ruleset.validateAndThrow();
+  config.validateAndThrow();
+
+  // Create the game model
+  const game = GameModel.create({
+    config: getSnapshot(config) as GameConfig,
+    players: [],
+    rules: [],
+    proposals: [],
+    turn: 0,
+    phase: 'setup',
+    history: []
+  });
+
+  // Load rules from the ruleset
+  const ruleSnapshots = ruleset.sortedRules.map(rule => ({
+    id: rule.id,
+    text: rule.text,
+    mutable: rule.mutable
+  }));
+  
+  game.loadFromRules(ruleSnapshots);
+
+  // Add players if provided
+  for (const playerData of players) {
+    game.addPlayer({
+      ...playerData,
+      points: 0,
+      isActive: false
+    });
+  }
+
+  console.log(`🎮 [createGame] Created game with ${ruleSnapshots.length} rules and ${players.length} players`);
+  
+  return game;
+} 

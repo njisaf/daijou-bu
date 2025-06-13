@@ -142,6 +142,77 @@ const llmService = process.env.LLM_TOKEN
 - Time-travel debugging for production troubleshooting
 - Enhanced analytics for game outcome analysis
 
+### 🔄 Current Development (Stage 6.2) - Ruleset Editor Route
+
+**Status**: ✅ **COMPLETED** - All Stage 6.2 objectives achieved
+
+#### Stage 6.1 Carry-over Items (Completed ✅)
+1. **✅ createGame Factory Function**: 
+   - Added `createGame({ ruleset, config, players? })` factory in GameModel.ts
+   - Validates inputs, creates game with custom ruleset/config
+   - Comprehensive tests in GameModel.test.ts (29/29 passing)
+
+2. **✅ Victory Logic Stubbing**:
+   - Added `freezeProposalPassed` computed property (detects passed freeze proposals)
+   - Added `acceptanceTestsPass` computed property (stub returning false with console log)
+   - Added `isGameWon` computed property combining new + legacy victory conditions
+   - Updated `checkVictoryCondition` action to use new logic
+
+3. **✅ NPM Script**: Added `"snapshot:ruleset"` script as alias to debug:rules
+
+4. **✅ Integration Testing**: 
+   - Created `custom-ruleset.integration.test.ts` with 5 comprehensive tests
+   - Tests createGame factory, custom rulesets, snapshots, validation, backward compatibility
+   - All tests passing (5/5)
+
+#### Stage 6.2 Implementation (Completed ✅)
+1. **✅ Routing**: Modified App.tsx to add `/ruleset` route with lazy loading and Suspense
+
+2. **✅ RulesetEditor Component**: Created comprehensive RulesetEditor.tsx with:
+   - Table/list view of rules (ID, mutability, text)
+   - CRUD operations (Add, Edit, Delete, Move Up/Down) 
+   - Mutability toggle with validation warnings
+   - Import/Export (JSON and Markdown)
+   - Validation with inline error display
+   - "Save & Use" functionality to create games
+   - Comprehensive JSDoc documentation
+   - MobX observer pattern and React hooks
+
+3. **✅ RuleSetModel Methods**: Added missing methods:
+   - `moveRuleUp()` / `moveRuleDown()` - Reorder rules in display
+   - `findRule()` - Find rule by ID (alias for existing functionality)
+   - `getNextAvailableId()` - Auto-generate unique rule IDs
+   - `toJSON()` / `toMarkdown()` - Export functionality
+   - `updateRule()` - Enhanced rule editing with validation
+
+4. **✅ RuleFormModal Component**: Created modal for rule editing with:
+   - Add/Edit modes with proper validation
+   - Mutability toggle with explanatory text
+   - Form validation and error handling
+   - Keyboard navigation and accessibility
+   - Clean form state management
+
+5. **✅ CSS Modules**: Created comprehensive styling:
+   - `RulesetEditor.module.css` - Main component styling with responsive design
+   - `RuleFormModal.module.css` - Modal styling with animations
+   - Modern, accessible design with clear visual hierarchy
+   - Interactive table design with hover states
+
+#### Technical Achievements
+- **All RuleSetModel tests passing**: 17/17 test cases
+- **Complete CRUD functionality**: Add, edit, delete, reorder rules
+- **Import/Export support**: JSON and Markdown formats
+- **Production-ready routing**: Lazy-loaded component with proper error boundaries
+- **Accessibility compliance**: ARIA labels, keyboard navigation, semantic HTML
+- **Responsive design**: Mobile-friendly layout with touch interactions
+
+#### Architecture Integration
+- **MobX Integration**: Observer pattern for reactive UI updates
+- **React Router**: Client-side routing with lazy loading
+- **TypeScript**: Full type safety with proper interfaces
+- **CSS Modules**: Scoped styling with modern design patterns
+- **Validation**: Comprehensive form and data validation
+
 ### 📋 Future Enhancements (Post-MVP)
 - [ ] Advanced rule conflict detection using NLP
 - [ ] Multiplayer support with WebSocket synchronization

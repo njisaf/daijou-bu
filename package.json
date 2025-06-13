@@ -5,12 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:config": "vite --open /config",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "debug:rules": "npx vitest run src/utils/cloneDefaultRuleset.test.ts --reporter=verbose",
+    "snapshot:ruleset": "npx vitest run src/utils/cloneDefaultRuleset.test.ts --reporter=verbose"
   },
   "dependencies": {
     "@testing-library/jest-dom": "^6.6.3",

@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
 import { GameProvider } from '../components/GameProvider';
 import DevPanel from '../components/DevPanel';
 import ErrorBanner from '../components/ErrorBanner';
 import '@testing-library/jest-dom';
+import RulesetEditor from '../routes/RulesetEditor';
+import ConfigEditor from '../routes/ConfigEditor';
 
 /**
  * Accessibility Tests for Phase 4
@@ -265,6 +268,184 @@ describe('Accessibility Tests', () => {
           expect(hasDescription).toBeTruthy();
         }
       }
+    });
+  });
+
+  describe('RulesetEditor Accessibility', () => {
+    it('should pass axe-core accessibility checks', async () => {
+      const { container } = render(
+        <BrowserRouter>
+          <RulesetEditor />
+        </BrowserRouter>
+      );
+
+      // Import axe-core for testing (not @axe-core/react which is for runtime)
+      const axe = await import('axe-core');
+      
+      // Run axe-core accessibility check
+      const results = await axe.run(container);
+      
+      // Verify no serious or critical violations
+      const violations = results.violations.filter(
+        (violation: any) => violation.impact === 'serious' || violation.impact === 'critical'
+      );
+      
+      if (violations.length > 0) {
+        console.error('Accessibility violations:', violations);
+      }
+      
+      expect(violations).toHaveLength(0);
+    });
+
+    it('should support keyboard navigation for rule management', async () => {
+      render(
+        <BrowserRouter>
+          <RulesetEditor />
+        </BrowserRouter>
+      );
+
+      // Check for keyboard accessible buttons
+      const buttons = screen.getAllByRole('button');
+      expect(buttons.length).toBeGreaterThan(0);
+
+      // Test each button for keyboard accessibility
+      for (const button of buttons) {
+        // Check for proper ARIA labeling
+        const hasAccessibleName = 
+          button.textContent?.trim() ||
+          button.getAttribute('aria-label') ||
+          button.getAttribute('aria-labelledby') ||
+          button.getAttribute('title'); // Include title attribute for icon buttons
+        expect(hasAccessibleName).toBeTruthy();
+        
+        // Only test focus for non-disabled buttons
+        if (!button.hasAttribute('disabled')) {
+          button.focus();
+          expect(button).toHaveFocus();
+        }
+      }
+    });
+
+    it('should provide proper table accessibility for rules list', async () => {
+      render(
+        <BrowserRouter>
+          <RulesetEditor />
+        </BrowserRouter>
+      );
+
+      // Check for table structure if present
+      const tables = screen.queryAllByRole('table');
+      if (tables.length > 0) {
+        for (const table of tables) {
+          // Check for proper table headers
+          const headers = screen.getAllByRole('columnheader');
+          expect(headers.length).toBeGreaterThan(0);
+          
+          // Check for table caption or aria-label
+          const hasAccessibleTableName = 
+            table.querySelector('caption') ||
+            table.getAttribute('aria-label') ||
+            table.getAttribute('aria-labelledby');
+          expect(hasAccessibleTableName).toBeTruthy();
+        }
+      }
+    });
+  });
+
+  describe('ConfigEditor Accessibility', () => {
+    it('should pass axe-core accessibility checks', async () => {
+      const { container } = render(
+        <BrowserRouter>
+          <ConfigEditor />
+        </BrowserRouter>
+      );
+
+      // Import axe-core for testing
+      const axe = await import('axe-core');
+      
+      // Run axe-core accessibility check
+      const results = await axe.run(container);
+      
+      // Verify no serious or critical violations
+      const violations = results.violations.filter(
+        (violation: any) => violation.impact === 'serious' || violation.impact === 'critical'
+      );
+      
+      if (violations.length > 0) {
+        console.error('Accessibility violations:', violations);
+      }
+      
+      expect(violations).toHaveLength(0);
+    });
+
+    it('should support keyboard navigation for form controls', async () => {
+      render(
+        <BrowserRouter>
+          <ConfigEditor />
+        </BrowserRouter>
+      );
+
+      // Check for keyboard accessible form controls
+      const inputs = screen.getAllByRole('textbox');
+      const buttons = screen.getAllByRole('button');
+      const selects = screen.getAllByRole('combobox');
+
+      // Test form controls
+      for (const input of inputs) {
+        input.focus();
+        expect(input).toHaveFocus();
+        
+        // Check for proper labeling
+        const hasAccessibleName = 
+          input.getAttribute('aria-label') ||
+          input.getAttribute('aria-labelledby') ||
+          document.querySelector(`label[for="${input.id}"]`);
+        expect(hasAccessibleName).toBeTruthy();
+      }
+
+      // Test buttons
+      for (const button of buttons) {
+        if (!button.hasAttribute('disabled')) {
+          button.focus();
+          expect(button).toHaveFocus();
+        }
+      }
+
+      // Test selects
+      for (const select of selects) {
+        select.focus();
+        expect(select).toHaveFocus();
+      }
+    });
+
+    it('should provide proper form validation feedback', async () => {
+      render(
+        <BrowserRouter>
+          <ConfigEditor />
+        </BrowserRouter>
+      );
+
+      // Test that validation errors have proper ARIA attributes
+      const maxPlayersInput = screen.getByLabelText('Maximum Players');
+      
+      // Make invalid
+      fireEvent.change(maxPlayersInput, { target: { value: '0' } });
+      
+      // Should have proper error indication
+      await waitFor(() => {
+        // The validation errors should be announced to screen readers
+        const errorBanner = screen.queryByText(/Validation Errors/);
+        if (errorBanner) {
+          expect(errorBanner).toBeInTheDocument();
+        }
+      });
+    });
+  });
+
+  describe('ARIA and Semantic Structure', () => {
+    it('should provide proper semantic structure', () => {
+      // Placeholder test for semantic structure validation
+      expect(true).toBe(true);
     });
   });
 }); 

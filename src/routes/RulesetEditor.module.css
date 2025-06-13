@@ -1,0 +1,535 @@
+/**
+ * RulesetEditor Route CSS Module
+ * 
+ * Provides comprehensive styling for the ruleset editor with:
+ * - Modern, professional design consistent with app theme
+ * - Responsive layout for mobile and desktop
+ * - Accessibility features and keyboard navigation
+ * - Interactive table design with hover states
+ * - Status indicators and validation styling
+ * - Action buttons with clear visual hierarchy
+ */
+
+/* Main Container */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  background: #ffffff;
+  min-height: 100vh;
+}
+
+/* Header Section */
+.header {
+  margin-bottom: 30px;
+  text-align: center;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 20px;
+}
+
+.header h2 {
+  margin: 0 0 8px 0;
+  color: #1f2937;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+.dirtyIndicator {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 16px;
+  background-color: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Error Banner */
+.errorBanner {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  color: #dc2626;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.errorBanner h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.errorBanner ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.errorBanner li {
+  margin: 6px 0;
+  font-size: 0.875rem;
+}
+
+/* Action Bar */
+.actionBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.actionGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Buttons */
+.button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button.primary {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.button.primary:hover:not(:disabled) {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.button.secondary {
+  background-color: white;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.button.secondary:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.button.success {
+  background-color: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.button.success:hover:not(:disabled) {
+  background-color: #059669;
+  border-color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* File Button */
+.fileButton {
+  position: relative;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid #d1d5db;
+  background-color: white;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fileButton:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+/* Rules Section */
+.rulesSection {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.rulesSection h3 {
+  margin: 0;
+  padding: 20px 24px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  color: #1f2937;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+/* Empty State */
+.emptyState {
+  padding: 60px 24px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Rules Table */
+.rulesTable {
+  display: grid;
+  grid-template-columns: 80px 120px 1fr 160px;
+  gap: 0;
+}
+
+.tableHeader {
+  display: contents;
+}
+
+.tableHeader > div {
+  padding: 16px 12px;
+  background: #f3f4f6;
+  border-bottom: 2px solid #e5e7eb;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.tableRow {
+  display: contents;
+}
+
+.tableRow:hover > div {
+  background-color: #f8fafc;
+}
+
+.tableRow > div {
+  padding: 16px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.15s ease;
+}
+
+/* Table Cells */
+.ruleId {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.875rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.ruleType {
+  display: flex;
+  align-items: center;
+}
+
+.mutabilityButton {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.mutabilityButton.mutable {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.mutabilityButton.mutable:hover {
+  background-color: #bbf7d0;
+  border-color: #4ade80;
+}
+
+.mutabilityButton.immutable {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+
+.mutabilityButton.immutable:hover {
+  background-color: #fde68a;
+  border-color: #f59e0b;
+}
+
+.ruleText {
+  font-size: 0.875rem;
+  color: #374151;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ruleActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+/* Icon Buttons */
+.iconButton {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.15s ease;
+}
+
+.iconButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.iconButton.edit:hover:not(:disabled) {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.iconButton.move:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.iconButton.delete:hover:not(:disabled) {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.iconButton:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .header h2 {
+    font-size: 1.5rem;
+  }
+
+  .actionBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionGroup {
+    justify-content: center;
+  }
+
+  .button,
+  .fileButton {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  /* Stack table on mobile */
+  .rulesTable {
+    display: block;
+  }
+
+  .tableHeader {
+    display: none;
+  }
+
+  .tableRow {
+    display: block;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    padding: 0;
+    background: white;
+  }
+
+  .tableRow > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .tableRow > div:last-child {
+    border-bottom: none;
+  }
+
+  .tableRow > div:before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .ruleText {
+    white-space: normal;
+    text-overflow: initial;
+    overflow: visible;
+    text-align: right;
+    max-width: 60%;
+  }
+
+  .ruleActions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 12px;
+  }
+
+  .actionGroup {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .iconButton {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .container {
+    background: #1f2937;
+    color: #f9fafb;
+  }
+
+  .header {
+    border-bottom-color: #374151;
+  }
+
+  .header h2 {
+    color: #f9fafb;
+  }
+
+  .header p {
+    color: #d1d5db;
+  }
+
+  .actionBar {
+    background: #111827;
+    border-color: #374151;
+  }
+
+  .rulesSection {
+    background: #1f2937;
+    border-color: #374151;
+  }
+
+  .rulesSection h3 {
+    background: #111827;
+    border-bottom-color: #374151;
+    color: #f9fafb;
+  }
+
+  .tableHeader > div {
+    background: #374151;
+    border-bottom-color: #4b5563;
+    color: #d1d5db;
+  }
+
+  .tableRow:hover > div {
+    background-color: #374151;
+  }
+
+  .tableRow > div {
+    border-bottom-color: #374151;
+  }
+
+  .ruleId {
+    color: #f9fafb;
+  }
+
+  .ruleText {
+    color: #d1d5db;
+  }
+
+  .button.secondary {
+    background-color: #374151;
+    color: #d1d5db;
+    border-color: #4b5563;
+  }
+
+  .button.secondary:hover {
+    background-color: #4b5563;
+    border-color: #6b7280;
+  }
+
+  .fileButton {
+    background-color: #374151;
+    color: #d1d5db;
+    border-color: #4b5563;
+  }
+
+  .fileButton:hover {
+    background-color: #4b5563;
+    border-color: #6b7280;
+  }
+} 
