@@ -61,10 +61,6 @@ npm run test -- --run src/models/RuleModel.test.ts
 npm run test -- --run --reporter=verbose
 ```
 
-## 🤖 OpenAI LLM Integration
-
-Daijō-bu supports real OpenAI GPT integration for authentic AI gameplay. The system automatically switches between real LLM services and deterministic mock services based on configuration.
-
 ## 🏗️ Architecture
 
 ### Core Components
@@ -209,6 +205,10 @@ export const DEFAULT_CONFIG: GameConfig = {
 ## 👥 Development
 
 For development-specific information including project status, contribution guidelines, and technical history, see [DEVELOPMENT.md](./DEVELOPMENT.md).
+
+## 🤖 OpenAI LLM Integration
+
+Daijō-bu supports real OpenAI GPT integration for authentic AI gameplay. The system automatically switches between real LLM services and deterministic mock services based on configuration.
 
 ### Getting Started with OpenAI
 
