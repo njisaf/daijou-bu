@@ -9,6 +9,7 @@ import styles from './TurnBanner.module.css';
  * Displays:
  * - Current turn number and phase
  * - Active player information
+ * - Prompt P (proof statement) when available
  * - Game control buttons (start/stop/resume)
  * - Game status indicators
  * 
@@ -93,6 +94,19 @@ const TurnBanner: React.FC = observer(() => {
           </button>
         </div>
       </div>
+
+      {/* Prompt P Section */}
+      {gameModel.config.promptP && (
+        <div className={styles.promptSection}>
+          <div className={styles.promptHeader}>
+            <h4 className={styles.promptTitle}>🎯 Prompt P</h4>
+            <span className={styles.promptBadge}>AI Instructions</span>
+          </div>
+          <div className={styles.promptContent}>
+            {gameModel.config.promptP}
+          </div>
+        </div>
+      )}
 
       {isRunning && (
         <div className={styles.runningIndicator}>

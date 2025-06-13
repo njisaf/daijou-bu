@@ -1,0 +1,177 @@
+[
+  {
+    "id": 101,
+    "text": "All people are potential players of Nomic. A player is a person who is taking his or her turn.",
+    "mutable": false
+  },
+  {
+    "id": 102,
+    "text": "Initially each player has zero Merit Points. Merit Points are a resource that may be spent only when a rule explicitly authorises it; they can never by themselves determine victory or eliminate a player.",
+    "mutable": true
+  },
+  {
+    "id": 103,
+    "text": "Play proceeds in rounds. At the start of a round, the *Active Player* is the player whose turn it is. Each round consists of two phases: 1. **Proposal Phase** \u2014 The Active Player may propose one rule\u2011change. 2. **Voting Phase** \u2014 All players vote FOR or AGAINST the proposal.",
+    "mutable": false
+  },
+  {
+    "id": 104,
+    "text": "Players shall take turns in the alphabetical order of their full names, cycling indefinitely.",
+    "mutable": false
+  },
+  {
+    "id": 105,
+    "text": "A proposal is adopted and its rule\u2011change takes effect at the end of the round if and only if a majority (more than half) of the eligible votes are cast FOR it.",
+    "mutable": false
+  },
+  {
+    "id": 106,
+    "text": "Points are *Merit Points* whose only use is to enable or pay for actions explicitly authorised elsewhere (e.g., Rule 205); they can never by themselves determine victory or eliminate a player.\n\nWhen a proposal is adopted, the player who proposed it gains 10 (ten) points, plus 5 (five) additional points for every player who voted FOR the proposal.",
+    "mutable": true
+  },
+  {
+    "id": 107,
+    "text": "The proposer of an adopted rule\u2011change becomes the Judge for the next round. The Judge adjudicates any disagreements about the legality or interpretation of rule\u2011changes.",
+    "mutable": false
+  },
+  {
+    "id": 108,
+    "text": "No rule\u2011change takes effect before the end of the round in which it is adopted.",
+    "mutable": false
+  },
+  {
+    "id": 109,
+    "text": "Rules in the 100\u2011series are *Immutable*; rules in the 200\u2011series are *Mutable*. Immutable rules take precedence over Mutable rules.",
+    "mutable": false
+  },
+  {
+    "id": 110,
+    "text": "A rule\u2011change that adds, removes, or changes text in a rule may designate that rule as Mutable or Immutable.",
+    "mutable": false
+  },
+  {
+    "id": 111,
+    "text": "Any Mutable rule may be repealed or amended by a rule\u2011change. Immutable rules may only be transmuted to Mutable before they can be repealed or amended.",
+    "mutable": false
+  },
+  {
+    "id": 112,
+    "text": "Whatever is not prohibited or regulated by the rules is permitted and unregulated, and any player may act at their own discretion.",
+    "mutable": false
+  },
+  {
+    "id": 113,
+    "text": "If two rules conflict, the one with the lower number has higher precedence.",
+    "mutable": false
+  },
+  {
+    "id": 114,
+    "text": "Only actions explicitly permitted by the rules constitute valid rule\u2011changes.",
+    "mutable": false
+  },
+  {
+    "id": 115,
+    "text": "If adopting a rule\u2011change would cause a contradiction or inconsistency within the rules as a whole, the rule\u2011change is void and no effect occurs.",
+    "mutable": false
+  },
+  {
+    "id": 116,
+    "text": "The text of the rules and rule\u2011changes is binding and authoritative. ---",
+    "mutable": false
+  },
+  {
+    "id": 201,
+    "text": "A proposal must consist of a single rule\u2011change stated clearly and unambiguously.",
+    "mutable": true
+  },
+  {
+    "id": 202,
+    "text": "Each player\u2019s vote must be either FOR, AGAINST, or ABSTAIN.",
+    "mutable": true
+  },
+  {
+    "id": 203,
+    "text": "Quorum for voting is any number of players numbering at least half of the current players, rounded down.",
+    "mutable": true
+  },
+  {
+    "id": 204,
+    "text": "All votes must be cast within 24 hours of the end of the Proposal Phase; otherwise a player\u2019s vote defaults to ABSTAIN.",
+    "mutable": true
+  },
+  {
+    "id": 205,
+    "text": "If a vote is tied FOR and AGAINST, the Judge\u2019s vote breaks the tie. If the Judge already voted, their vote counts double.",
+    "mutable": true
+  },
+  {
+    "id": 206,
+    "text": "Any player who fails to vote incurs a penalty of \u201110 (minus ten) points.",
+    "mutable": true
+  },
+  {
+    "id": 207,
+    "text": "Any player may submit a *Freeze Proposal*; if adopted by unanimous vote, the game ends immediately.",
+    "mutable": true
+  },
+  {
+    "id": 208,
+    "text": "If a player\u2019s score becomes negative, that player\u2019s score is reset to zero.",
+    "mutable": true
+  },
+  {
+    "id": 209,
+    "text": "A proposal may *transmute* a rule by changing its status from Immutable to Mutable or vice\u2011versa; transmuting an Immutable rule to Mutable requires a \u2154 majority.",
+    "mutable": true
+  },
+  {
+    "id": 210,
+    "text": "New rules receive the lowest positive integer not currently used by an existing rule of the same series.",
+    "mutable": true
+  },
+  {
+    "id": 211,
+    "text": "If a rule requires random selection, the Judge shall use a method whose results can be verified by all players.",
+    "mutable": true
+  },
+  {
+    "id": 212,
+    "text": "Upon a player\u2019s victory, the game resets: all players\u2019 scores return to zero and all Mutable rules with numbers \u2265300 are repealed.",
+    "mutable": true
+  },
+  {
+    "id": 213,
+    "text": "Amending a rule requires a number of FOR votes greater than the number of AGAINST votes by at least two.",
+    "mutable": true
+  },
+  {
+    "id": 120,
+    "text": "*Purpose*. The sole objective of this game is to produce a consistent **Development Rulebook** that, when given to an external LLM together with the immutable prompt defined in Rule 100 (*Prompt\u202fP*), enables that LLM to satisfy all published *Acceptance Tests*. No other win condition exists; when the players adopt a Freeze Proposal under Rule\u202f207 while affirming that the Rulebook is complete, the game ends and all players share the result.",
+    "mutable": false
+  },
+  {
+    "id": 121,
+    "text": "*Proof Requirement*. Every Proposal must include a *Proof Section* showing that its adoption (a) does not render the ruleset inconsistent, and (b) maintains or improves the likelihood that an LLM following the Development Rulebook can satisfy Prompt\u202fP. If the Proof Section is missing or the Judge finds it unsound, the Proposal is automatically **VOID**.",
+    "mutable": false
+  },
+  {
+    "id": 122,
+    "text": "*Judging Proofs*. In addition to the duties described in Rule\u202f107, the Judge must state why each Proposal\u2019s Proof Section is sound or unsound. This written justification becomes part of the public record.",
+    "mutable": false
+  },
+  {
+    "id": 301,
+    "text": "Each player has a public counter **Proposals\u202fPassed**. When a Proposal they authored is adopted, increase their counter by +1. When it is rejected, decrease the counter by \u20131 (to a minimum of 0). The Judge must update this counter immediately after announcing the vote result.",
+    "mutable": true
+  },
+  {
+    "id": 302,
+    "text": "Each time a player\u2019s vote matches the final outcome of a Proposal (FOR on an adopted proposal, AGAINST on a rejected one) increase their **Accurate\u202fVotes** by +1. Each mismatch increases **Inaccurate\u202fVotes** by +1. Abstentions are ignored. These tallies are public and never affect gameplay.",
+    "mutable": true
+  },
+  {
+    "id": 303,
+    "text": "Immediately after updating all metrics the Judge must append a one\u2011line entry to `SCORE_REPORT.md` in the format: `Turn NN \u2014 Alice \u271a10\u202fpts (12 passed) | Bob \u271a0\u202fpts | Charlie \u20135\u202fpts \u2014 2 proposals passed, 1 failed`. The entry must include each player\u2019s current Merit Points, Proposals\u202fPassed, and Accurate/Inaccurate vote totals. Failure to update the file is treated as an undecided dispute under Rule\u202f107.",
+    "mutable": true
+  }
+]

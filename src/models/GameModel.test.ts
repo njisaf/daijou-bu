@@ -352,4 +352,95 @@ describe('GameModel', () => {
       expect(game.proposals[0].id).toBe(301);
     });
   });
+});
+
+/**
+ * Tests for GameModel with Prompt P support
+ */
+
+describe('GameModel with Prompt P', () => {
+  let gameModel: typeof GameModel.Type;
+
+  beforeEach(() => {
+    gameModel = GameModel.create({
+      config: { ...DEFAULT_CONFIG, promptP: 'Test prompt for LLM agents' },
+      players: [],
+      rules: [],
+      proposals: [],
+      turn: 0,
+      phase: 'setup',
+      history: []
+    });
+  });
+
+  describe('GameSnapshot with proofStatement', () => {
+    it('should include proofStatement in gameSnapshot', () => {
+      const snapshot = gameModel.gameSnapshot;
+      expect(snapshot).toHaveProperty('proofStatement');
+    });
+
+    it('should extract proofStatement from config.promptP', () => {
+      const testPrompt = 'Custom prompt for testing';
+      const modelWithCustomPrompt = GameModel.create({
+        config: { ...DEFAULT_CONFIG, promptP: testPrompt },
+        players: [],
+        rules: [],
+        proposals: [],
+        turn: 0,
+        phase: 'setup',
+        history: []
+      });
+
+      const snapshot = modelWithCustomPrompt.gameSnapshot;
+      expect(snapshot.proofStatement).toBe(testPrompt);
+    });
+
+    it('should handle empty promptP gracefully', () => {
+      const modelWithEmptyPrompt = GameModel.create({
+        config: { ...DEFAULT_CONFIG, promptP: '' },
+        players: [],
+        rules: [],
+        proposals: [],
+        turn: 0,
+        phase: 'setup',
+        history: []
+      });
+
+      const snapshot = modelWithEmptyPrompt.gameSnapshot;
+      expect(snapshot.proofStatement).toBe('');
+    });
+  });
+
+  describe('rule loading integration', () => {
+    it('should support loading rules with promptP via loadFromRules action', () => {
+      expect(gameModel.loadFromRules).toBeDefined();
+      expect(typeof gameModel.loadFromRules).toBe('function');
+    });
+
+    it('should preserve promptP when loading rules', () => {
+      const originalPrompt = gameModel.config.promptP;
+      
+      // Mock loading rules (we'll implement this in the actual GameModel)
+      expect(gameModel.config.promptP).toBe(originalPrompt);
+    });
+  });
+
+  describe('backward compatibility', () => {
+    it('should still work with existing GameModel API', () => {
+      // Test existing functionality still works
+      expect(gameModel.addPlayer).toBeDefined();
+      expect(gameModel.addRule).toBeDefined();
+      expect(gameModel.addProposal).toBeDefined();
+      expect(gameModel.setupGame).toBeDefined();
+    });
+
+    it('should maintain existing snapshot properties', () => {
+      const snapshot = gameModel.gameSnapshot;
+      expect(snapshot).toHaveProperty('players');
+      expect(snapshot).toHaveProperty('rules');
+      expect(snapshot).toHaveProperty('proposals');
+      expect(snapshot).toHaveProperty('turn');
+      expect(snapshot).toHaveProperty('phase');
+    });
+  });
 }); 

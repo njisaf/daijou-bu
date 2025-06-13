@@ -120,7 +120,11 @@ export const GameModel = types
      * Get current game snapshot for MCP services
      */
     get gameSnapshot() {
-      return getSnapshot(self);
+      const snapshot = getSnapshot(self);
+      return {
+        ...snapshot,
+        proofStatement: self.config.promptP || ''
+      };
     }
   }))
   .actions(self => ({
@@ -350,5 +354,26 @@ export const GameModel = types
       report += `- Victory Target: ${self.config.victoryTarget} points\n`;
       
       return report;
+    },
+
+    /**
+     * Load rules from the loadInitialRules utility
+     * This replaces any existing rules with the canonical ruleset plus Prompt P
+     */
+    loadFromRules(ruleSnapshots: Array<{ id: number; text: string; mutable: boolean }>) {
+      if (self.phase !== 'setup') {
+        throw new Error('Can only load rules during setup phase');
+      }
+
+      // Clear existing rules
+      self.rules.clear();
+
+      // Add all provided rules
+      for (const ruleSnapshot of ruleSnapshots) {
+        this.addRule(ruleSnapshot);
+      }
+
+      console.log(`📋 [GameModel] Loaded ${ruleSnapshots.length} rules from loadInitialRules`);
+      console.log(`📋 [GameModel] Prompt P: "${self.config.promptP}"`);
     }
   })); 

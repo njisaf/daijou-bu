@@ -80,6 +80,9 @@ export interface GameConfig {
     /** Maximum concurrent agent requests */
     concurrency: number;
   };
+  
+  /** Prompt P - instructions for LLM players */
+  promptP: string;
 }
 
 /**
@@ -99,7 +102,8 @@ export const DEFAULT_CONFIG: GameConfig = {
   agent: {
     type: getAgentTypeFromEnv(), // Auto-detect from environment
     concurrency: 4              // Phase 5 Objective 5: Concurrency bump
-  }
+  },
+  promptP: process.env.PROMPT_P || '' // Default to empty string
 };
 
 /**
@@ -107,5 +111,8 @@ export const DEFAULT_CONFIG: GameConfig = {
  * In the future this could be enhanced to read from localStorage or URL params
  */
 export function getGameConfig(): GameConfig {
-  return { ...DEFAULT_CONFIG };
+  return { 
+    ...DEFAULT_CONFIG,
+    promptP: process.env.PROMPT_P || DEFAULT_CONFIG.promptP
+  };
 } 

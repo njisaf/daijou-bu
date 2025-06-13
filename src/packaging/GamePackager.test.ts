@@ -17,8 +17,108 @@ describe('GamePackager', () => {
   let packager: GamePackager;
 
   beforeEach(() => {
-    // Create a completed game setup
+    packager = new GamePackager();
+    
+    // Create a game model with Prompt P for testing
+    const config = {
+      ...getGameConfig(),
+      promptP: 'You are a strategic AI player in Nomic. Make proposals that help you win while being fair to other players.'
+    };
+    
+    const initialRules = loadInitialRules();
+    
     gameModel = GameModel.create({
+      config,
+      rules: initialRules.map(rule => ({
+        id: rule.id,
+        text: rule.text,
+        mutable: rule.mutable
+      })),
+      players: [
+        { id: 'alice', name: 'Alice', points: 100, icon: '🤖', isActive: false },
+        { id: 'bob', name: 'Bob', points: 85, icon: '🦾', isActive: false },
+        { id: 'charlie', name: 'Charlie', points: 70, icon: '🧠', isActive: false }
+      ],
+      proposals: [
+        {
+          id: 301,
+          type: 'Add',
+          ruleNumber: 214,
+          ruleText: 'Test rule for scoring',
+          proposerId: 'alice',
+          status: 'passed',
+          votes: [
+            { voterId: 'alice', choice: 'FOR' },
+            { voterId: 'bob', choice: 'FOR' },
+            { voterId: 'charlie', choice: 'AGAINST' }
+          ]
+        }
+      ],
+      turn: 15,
+      phase: 'completed'
+    });
+  });
+
+  describe('Prompt P integration', () => {
+    it('should include Prompt P banner in rulebook when present', () => {
+      const rulebook = packager.generateRulebook(gameModel);
+      
+      expect(rulebook).toContain('## 🎯 Prompt P (AI Instructions)');
+      expect(rulebook).toContain('You are a strategic AI player in Nomic');
+      expect(rulebook).toContain('```');
+      expect(rulebook).toContain('*The following instructions guided AI player behavior throughout this game:*');
+    });
+
+    it('should not include Prompt P banner when not present', () => {
+      // Create game model without Prompt P
+      const configWithoutPromptP = {
+        ...getGameConfig(),
+        promptP: ''
+      };
+      
+      const gameModelWithoutPromptP = GameModel.create({
+        config: configWithoutPromptP,
+        rules: [],
+        players: [
+          { id: 'alice', name: 'Alice', points: 100, icon: '🤖', isActive: false }
+        ],
+        proposals: [],
+        turn: 1,
+        phase: 'completed'
+      });
+
+      const rulebook = packager.generateRulebook(gameModelWithoutPromptP);
+      
+      expect(rulebook).not.toContain('## 🎯 Prompt P (AI Instructions)');
+      expect(rulebook).not.toContain('You are a strategic AI player');
+    });
+
+    it('should generate PROMPT_P.txt file content correctly', () => {
+      const promptPContent = packager.generatePromptPFile(gameModel);
+      
+      expect(promptPContent).toContain('PROMPT P - AI PLAYER INSTRUCTIONS');
+      expect(promptPContent).toContain('===================================');
+      expect(promptPContent).toContain('You are a strategic AI player in Nomic');
+      expect(promptPContent).toContain('PROMPT P CONTENT:');
+      expect(promptPContent).toContain('Total Turns: 15');
+      expect(promptPContent).toContain('Total Players: 3');
+      expect(promptPContent).toContain('Victory Target: 100 points');
+      expect(promptPContent).toContain('automatically injected into every AI agent request');
+    });
+
+    it('should handle missing Prompt P in PROMPT_P.txt file', () => {
+      // Create game model without Prompt P
+      const configWithoutPromptP = {
+        ...getGameConfig(),
+        promptP: ''
+      };
+      
+      const gameModelWithoutPromptP = GameModel.create({
+        config: configWithoutPromptP,
+        rules: [],
+        players: [
+          { id: 'alice', name: 'Alice', points: 100, icon: '🤖', isActive: false }
+        ],
       config: DEFAULT_CONFIG,
       players: [],
       rules: [],

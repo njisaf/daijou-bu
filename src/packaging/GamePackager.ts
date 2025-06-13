@@ -88,6 +88,22 @@ export class GamePackager {
     lines.push('This document contains all rules that governed the completed game.');
     lines.push('');
 
+    // Prompt P Banner
+    if (gameModel.config.promptP) {
+      lines.push('---');
+      lines.push('');
+      lines.push('## 🎯 Prompt P (AI Instructions)');
+      lines.push('');
+      lines.push('*The following instructions guided AI player behavior throughout this game:*');
+      lines.push('');
+      lines.push('```');
+      lines.push(gameModel.config.promptP);
+      lines.push('```');
+      lines.push('');
+      lines.push('---');
+      lines.push('');
+    }
+
     // Initial Rules section
     lines.push('## Initial Rules');
     lines.push('');
@@ -255,6 +271,47 @@ export class GamePackager {
   }
 
   /**
+   * Generate the PROMPT_P.txt file content
+   * 
+   * Creates a plain text file containing the Prompt P instructions that guided
+   * AI player behavior during the game. This serves as an archival record of
+   * the AI behavioral guidance for future reference.
+   * 
+   * @param gameModel - The completed game model
+   * @returns Plain text content for PROMPT_P.txt file
+   */
+  generatePromptPFile(gameModel: typeof GameModel.Type): string {
+    const lines: string[] = [];
+    
+    lines.push('PROMPT P - AI PLAYER INSTRUCTIONS');
+    lines.push('===================================');
+    lines.push('');
+    lines.push('This document contains the Prompt P instructions that guided AI player');
+    lines.push('behavior throughout the Proof-Nomic game. These instructions were provided');
+    lines.push('to each AI agent before they made proposals or cast votes.');
+    lines.push('');
+    lines.push('Game Information:');
+    lines.push(`- Date: ${new Date().toISOString().split('T')[0]}`);
+    lines.push(`- Total Turns: ${gameModel.turn}`);
+    lines.push(`- Total Players: ${gameModel.players.length}`);
+    lines.push(`- Victory Target: ${gameModel.config.victoryTarget} points`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    lines.push('PROMPT P CONTENT:');
+    lines.push('');
+    lines.push(gameModel.config.promptP || 'No Prompt P was provided for this game.');
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    lines.push('This prompt was automatically injected into every AI agent request');
+    lines.push('as part of the system context, ensuring consistent behavioral guidance');
+    lines.push('throughout the game session.');
+    
+    return lines.join('\n');
+  }
+
+  /**
    * Create a complete game package as a downloadable ZIP file
    * 
    * The package contains:
@@ -278,6 +335,14 @@ export class GamePackager {
     zip.file('RULEBOOK.md', rulebook);
     zip.file('SCORE_REPORT.md', scoreReport);
 
+    // Add PROMPT_P.txt if Prompt P is available
+    const contents = ['RULEBOOK.md', 'SCORE_REPORT.md'];
+    if (gameModel.config.promptP) {
+      const promptPContent = this.generatePromptPFile(gameModel);
+      zip.file('PROMPT_P.txt', promptPContent);
+      contents.push('PROMPT_P.txt');
+    }
+
     // Generate the ZIP blob
     const blob = await zip.generateAsync({ type: 'blob' });
 
@@ -291,7 +356,7 @@ export class GamePackager {
     return {
       blob,
       filename,
-      contents: ['RULEBOOK.md', 'SCORE_REPORT.md'],
+      contents,
       metadata,
       size: blob.size
     };

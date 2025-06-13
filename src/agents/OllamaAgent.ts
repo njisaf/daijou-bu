@@ -225,7 +225,11 @@ export class OllamaAgent implements IAgent {
     const playerCount = gameSnapshot.players.length;
     const turn = gameSnapshot.turn;
     
-    return `${basePrompt}
+    // Include Prompt P (proof statement) if available
+    const promptPSection = gameSnapshot.proofStatement ? 
+      `\nPROOF STATEMENT P:\n${gameSnapshot.proofStatement}\n` : '';
+    
+    return `${basePrompt}${promptPSection}
 
 You are playing Nomic, a game where players propose rule changes and vote on them.
 
@@ -270,7 +274,11 @@ Please generate a strategic rule proposal that could help you win the game.`;
    * @private
    */
   private buildVotingSystemPrompt(gameSnapshot: GameSnapshot): string {
-    return `You are voting on a rule proposal in Nomic.
+    // Include Prompt P (proof statement) if available
+    const promptPSection = gameSnapshot.proofStatement ? 
+      `PROOF STATEMENT P:\n${gameSnapshot.proofStatement}\n\n` : '';
+    
+    return `${promptPSection}You are voting on a rule proposal in Nomic.
 
 Game Context:
 - Turn: ${gameSnapshot.turn}

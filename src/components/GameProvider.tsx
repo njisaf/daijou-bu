@@ -5,6 +5,7 @@ import { TurnOrchestrator } from '../orchestrator/TurnOrchestrator';
 import { SnapshotLogger } from '../logging/SnapshotLogger';
 import { getAgentFactory } from '../agents/AgentFactory';
 import { createPersistence, type IGamePersistence } from '../persistence';
+import { loadInitialRules } from '../utils/loadInitialRules';
 
 /**
  * Context value provided by GameProvider
@@ -71,8 +72,9 @@ interface GameProviderProps {
 export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP }) => {
   const [gameModel] = useState(() => {
     // Try to restore from persistence or create new game
+    console.log('🎮 [GameProvider] Creating game model with promptP:', promptP);
     return GameModel.create({
-      config: DEFAULT_CONFIG,
+      config: { ...DEFAULT_CONFIG, promptP },
       players: [],
       rules: [],
       proposals: [],
@@ -197,36 +199,12 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP })
       isActive: false
     });
 
-    // Add initial rules (from initialRules.md)
-    gameModel.addRule({
-      id: 101,
-      text: 'All players must abide by the rules.',
-      mutable: false
-    });
-
-    gameModel.addRule({
-      id: 102,
-      text: 'The first player to reach 100 points wins.',
-      mutable: false
-    });
-
-    gameModel.addRule({
-      id: 103,
-      text: 'A rule-change is any change in the rules including adding, deleting, or amending.',
-      mutable: false
-    });
-
-    gameModel.addRule({
-      id: 201,
-      text: 'Players may form alliances.',
-      mutable: true
-    });
-
-    gameModel.addRule({
-      id: 202,
-      text: 'Each player vote must be either FOR, AGAINST, or ABSTAIN.',
-      mutable: true
-    });
+    // Load initial rules from JSON with Prompt P injection
+    console.log('📋 [GameProvider] Loading initial rules with promptP:', promptP);
+    const initialRules = loadInitialRules(promptP);
+    gameModel.loadFromRules(initialRules);
+    
+    console.log(`📋 [GameProvider] Loaded ${initialRules.length} rules (including rule 100 with Prompt P)`);
 
     // Setup the game (this sets it to playing phase)
     gameModel.setupGame();

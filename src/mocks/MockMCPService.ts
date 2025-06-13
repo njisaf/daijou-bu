@@ -42,6 +42,7 @@ export interface GameSnapshot {
   proposals: any[];
   turn: number;
   phase: string;
+  proofStatement: string;
 }
 
 /**

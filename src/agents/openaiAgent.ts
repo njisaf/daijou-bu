@@ -103,7 +103,8 @@ export class OpenAIAgent implements MCPService {
       players: [],
       proposals: [],
       turn: 1,
-      phase: 'playing'
+      phase: 'playing',
+      proofStatement: ''
     } as GameSnapshot;
     
     const systemPrompt = this.buildSystemPrompt(prompt, snapshot);
@@ -144,7 +145,8 @@ export class OpenAIAgent implements MCPService {
       players: [],
       proposals: [],
       turn: 1,
-      phase: 'playing'
+      phase: 'playing',
+      proofStatement: ''
     } as GameSnapshot;
     
     const systemPrompt = this.buildVotingSystemPrompt(snapshot);
@@ -253,7 +255,11 @@ export class OpenAIAgent implements MCPService {
    * @private
    */
   private buildSystemPrompt(basePrompt: string, gameSnapshot: GameSnapshot): string {
-    return `${basePrompt}
+    // Include Prompt P (proof statement) if available
+    const promptPSection = gameSnapshot.proofStatement ? 
+      `\nPROOF STATEMENT P:\n${gameSnapshot.proofStatement}\n` : '';
+    
+    return `${basePrompt}${promptPSection}
 
 You are playing Nomic, a game about changing rules. Here's the current game state:
 
@@ -298,7 +304,11 @@ Make sure to:
    * @private
    */
   private buildVotingSystemPrompt(gameSnapshot: GameSnapshot): string {
-    return `You are voting on a proposal in Nomic. Consider:
+    // Include Prompt P (proof statement) if available
+    const promptPSection = gameSnapshot.proofStatement ? 
+      `PROOF STATEMENT P:\n${gameSnapshot.proofStatement}\n\n` : '';
+    
+    return `${promptPSection}You are voting on a proposal in Nomic. Consider:
 
 Current Game State:
 - Your current standing among players

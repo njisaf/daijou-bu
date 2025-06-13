@@ -23,16 +23,17 @@ describe('OllamaAgent', () => {
     // Create mock game snapshot
     mockGameSnapshot = {
       players: [
-        { id: 'player1', name: 'Alice', points: 0, isActive: true },
-        { id: 'player2', name: 'Bob', points: 5, isActive: false }
+        { id: 'alice', name: 'Alice', points: 50, isActive: true },
+        { id: 'bob', name: 'Bob', points: 30, isActive: false }
       ],
       rules: [
-        { id: 101, text: 'All players must abide by the rules.', mutable: false },
-        { id: 201, text: 'Players take turns clockwise.', mutable: true }
+        { id: 100, text: 'This is the proof statement P', mutable: false },
+        { id: 101, text: 'All players must follow the rules', mutable: false }
       ],
       proposals: [],
       turn: 1,
-      phase: 'playing'
+      phase: 'playing',
+      proofStatement: 'You are a strategic AI player in Nomic. Make proposals that help you win while being fair to other players.'
     };
   });
 
@@ -279,6 +280,110 @@ Text: "Players may submit multiple proposals per turn."`;
       await expect(agent.propose(mockGameSnapshot)).rejects.toThrow(
         'Invalid response format from Ollama API'
       );
+    });
+  });
+
+  describe('prompt generation with Prompt P', () => {
+    it('should include proof statement in proposal system prompt', async () => {
+      // Mock successful Ollama response
+      const mockResponse = {
+        choices: [{ 
+          message: { 
+            content: '### Proposal\nType: Add\nNumber: 301\nText: "Test rule"' 
+          } 
+        }]
+      };
+      
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      });
+
+      // Spy on the buildSystemPrompt method (need to access private method)
+      const buildSystemPromptSpy = vi.spyOn(agent as any, 'buildSystemPrompt');
+      
+      await agent.propose(mockGameSnapshot, 'Generate a test proposal');
+      
+      expect(buildSystemPromptSpy).toHaveBeenCalled();
+      const systemPrompt = buildSystemPromptSpy.mock.results[0].value;
+      
+      expect(systemPrompt).toContain('PROOF STATEMENT P:');
+      expect(systemPrompt).toContain('You are a strategic AI player in Nomic');
+    });
+
+    it('should include proof statement in voting system prompt', async () => {
+      // Mock successful Ollama response
+      const mockResponse = {
+        choices: [{ 
+          message: { 
+            content: 'FOR' 
+          } 
+        }]
+      };
+      
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      });
+
+      // Spy on the buildVotingSystemPrompt method
+      const buildVotingSystemPromptSpy = vi.spyOn(agent as any, 'buildVotingSystemPrompt');
+      
+      await agent.vote('### Proposal\nType: Add\nNumber: 301\nText: "Test rule"', mockGameSnapshot);
+      
+      expect(buildVotingSystemPromptSpy).toHaveBeenCalled();
+      const systemPrompt = buildVotingSystemPromptSpy.mock.results[0].value;
+      
+      expect(systemPrompt).toContain('PROOF STATEMENT P:');
+      expect(systemPrompt).toContain('You are a strategic AI player in Nomic');
+    });
+
+    it('should handle empty proof statement gracefully', async () => {
+      const snapshotWithoutProofStatement: GameSnapshot = {
+        ...mockGameSnapshot,
+        proofStatement: ''
+      };
+
+      // Mock successful Ollama response
+      const mockResponse = {
+        choices: [{ 
+          message: { 
+            content: '### Proposal\nType: Add\nNumber: 301\nText: "Test rule"' 
+          } 
+        }]
+      };
+      
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      });
+
+      const buildSystemPromptSpy = vi.spyOn(agent as any, 'buildSystemPrompt');
+      
+      await agent.propose(snapshotWithoutProofStatement, 'Generate a test proposal');
+      
+      const systemPrompt = buildSystemPromptSpy.mock.results[0].value;
+      
+      // Should not contain the proof statement section when empty
+      expect(systemPrompt).not.toContain('PROOF STATEMENT P:');
+      expect(systemPrompt).toContain('You are playing Nomic');
+    });
+  });
+
+  describe('error handling', () => {
+    it('should handle fetch errors gracefully', async () => {
+      (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+      
+      await expect(agent.propose(mockGameSnapshot, 'Test prompt')).rejects.toThrow();
+    });
+
+    it('should handle invalid response format', async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ invalid: 'response' })
+      });
+      
+      await expect(agent.propose(mockGameSnapshot, 'Test prompt')).rejects.toThrow();
     });
   });
 }); 
