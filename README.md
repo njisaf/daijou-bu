@@ -1,5 +1,5 @@
 # 大条部
-## *Daijō-bu*
+## *Great Law Division*
 ### 🛠️ Proof-Nomic LLM Game
 
 A **Vite + React 18** single-page application implementing Peter Suber's Nomic game with autonomous LLM players. The game orchestrates rule changes, voting, and scoring among multiple AI agents through HTTP/JSON communication.
