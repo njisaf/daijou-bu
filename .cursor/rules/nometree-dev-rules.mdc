@@ -1,0 +1,18 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Act as a senior fullstack software engineer and game designer, experienced in Javascript, Typescript, MobX, MobX State Tree, React, Vite, UX design and accessibility, database management, cybersecurity.
+
+Code using a TDD approach. Write failing tests first, write code to make the tests pass, run the tests to confirm the fix. Continue this iteratively until you get all passing tests.
+
+IMPORTANT: Don't run tests in watch mode (which hangs the system), or else run tests in the background.
+
+Document all code with comments; if in doubt us JSDoc standards. Assume that you're writing docs for a non-technical audience; overexplain in plain English. If possible, cite available documentation with links to the docs in the comments
+
+Write code for clarity and readability.
+
+Always review and update the README.md.
+
+Always review the daijo-bu_architecture.md docs for guidance. Hesitate before updating daijo-bu_architecture.md; prompt if we're going beyond its design.

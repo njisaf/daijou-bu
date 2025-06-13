@@ -1,0 +1,168 @@
+.container {
+  background: white;
+  border: 1px solid #e1e8ed;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.title {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+}
+
+.phase {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.phase.setup {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.phase.playing {
+  background: #e8f5e8;
+  color: #2e7d32;
+}
+
+.phase.paused {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.phase.completed {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.content {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.turnInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.turnNumber {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.activePlayer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666;
+}
+
+.playerIcon {
+  font-size: 1.2rem;
+}
+
+.playerName {
+  font-weight: 500;
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.controlButton {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.controlButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.controlButton.play {
+  background: #4caf50;
+  color: white;
+}
+
+.controlButton.play:hover:not(:disabled) {
+  background: #388e3c;
+  transform: translateY(-1px);
+}
+
+.controlButton.pause {
+  background: #ff9800;
+  color: white;
+}
+
+.controlButton.pause:hover:not(:disabled) {
+  background: #f57c00;
+  transform: translateY(-1px);
+}
+
+.runningIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #e8f5e8;
+  border: 1px solid #4caf50;
+  border-radius: 6px;
+  color: #2e7d32;
+  font-size: 0.9rem;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #4caf50;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  
+  .content {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .controls {
+    justify-content: center;
+  }
+} 
