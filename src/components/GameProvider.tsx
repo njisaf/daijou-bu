@@ -4,6 +4,7 @@ import { DEFAULT_CONFIG } from '../config';
 import { TurnOrchestrator } from '../orchestrator/TurnOrchestrator';
 import { SnapshotLogger } from '../logging/SnapshotLogger';
 import { MockMCPService } from '../mocks/MockMCPService';
+import { OpenAIAgent } from '../agents/openaiAgent';
 import { createPersistence, type IGamePersistence } from '../persistence';
 
 /**
@@ -82,12 +83,39 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP })
     });
   });
 
-  const [orchestrator] = useState(() => {
-    const mcpService = new MockMCPService();
-    return new TurnOrchestrator(gameModel, mcpService);
+  // Create LLM service based on environment configuration
+  const [mcpService] = useState(() => {
+    console.log('🚀 [GameProvider] Initializing LLM service...', new Date().toISOString());
+    
+    if (process.env.LLM_TOKEN) {
+      console.log('🚀 [GameProvider] OpenAI API key detected - using real LLM integration');
+      console.log('🚀 [GameProvider] LLM_TOKEN present:', !!process.env.LLM_TOKEN);
+      console.log('🚀 [GameProvider] Service type: OpenAI GPT-3.5-turbo');
+      
+      const openaiAgent = new OpenAIAgent();
+      if (openaiAgent.isAvailable()) {
+        console.log('✅ [GameProvider] OpenAI agent initialized successfully');
+        console.log('✅ [GameProvider] Real AI gameplay ENABLED');
+        return openaiAgent;
+      } else {
+        console.warn('⚠️ [GameProvider] OpenAI agent not available, falling back to mock service');
+        console.warn('⚠️ [GameProvider] Reason: API key validation failed');
+      }
+    } else {
+      console.log('🚀 [GameProvider] No OpenAI API key - using mock LLM service');
+      console.log('🚀 [GameProvider] Service type: Deterministic Mock');
+      console.log('🚀 [GameProvider] Real AI gameplay DISABLED');
+    }
+    
+    console.log('🎭 [GameProvider] Falling back to MockMCPService');
+    console.log('🎭 [GameProvider] This will provide predictable, deterministic responses');
+    return new MockMCPService();
   });
 
   const [logger] = useState(() => new SnapshotLogger(gameModel));
+  const [orchestrator] = useState(() => {
+    return new TurnOrchestrator(gameModel, mcpService, logger);
+  });
   const [persistence, setPersistence] = useState<IGamePersistence | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [lastError, setLastError] = useState<Error | null>(null);

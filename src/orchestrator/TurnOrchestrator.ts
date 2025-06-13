@@ -1,8 +1,10 @@
 import type { SnapshotOut } from 'mobx-state-tree';
 import { GameModel, type GamePhase } from '../models/GameModel';
-import { MockMCPService, type GameSnapshot } from '../mocks/MockMCPService';
+import { type MCPService, type GameSnapshot } from '../mocks/MockMCPService';
 import { parseProposalMarkdown, type Proposal } from '../schemas/proposal';
 import { createProposal } from '../models/ProposalModel';
+import { RuleEngine } from '../engine/RuleEngine';
+import { SnapshotLogger } from '../logging/SnapshotLogger';
 
 /**
  * Events emitted by the TurnOrchestrator
@@ -57,7 +59,9 @@ export class TurnOrchestrator {
 
   constructor(
     public readonly gameModel: typeof GameModel.Type,
-    private readonly mcpService: MockMCPService
+    private readonly mcpService: MCPService,
+    private readonly logger: SnapshotLogger,
+    private readonly onError?: (error: Error) => void
   ) {}
 
   /**
@@ -153,54 +157,67 @@ export class TurnOrchestrator {
   }
 
   /**
-   * Execute a single complete turn
+   * Execute a single turn of the game
    */
   async executeTurn(): Promise<void> {
-    if (this.gameModel.phase !== 'playing') {
-      throw new Error('Cannot execute turn when game is not playing');
+    if (this.gameModel.phase === 'completed') {
+      this.stop();
+      return;
     }
-
-    const currentPlayer = this.gameModel.currentPlayer;
-    if (!currentPlayer) {
-      throw new Error('No current player available');
-    }
-
-    this.emit('turnStart', {
-      turn: this.gameModel.turn,
-      playerId: currentPlayer.id
-    });
 
     try {
-      // Phase 1: Proposal Generation
-      await this.executeProposalPhase();
-      
-      const latestProposal = this.gameModel.proposals[this.gameModel.proposals.length - 1];
-      
-      // Phase 2: Voting
-      await this.executeVotingPhase(latestProposal.id);
-      
-      // Phase 3: Resolution and Scoring
-      this.resolveProposal(latestProposal.id);
-      
-      // Phase 4: Turn advancement (only if game is still playing)
-      if (this.gameModel.phase === 'playing') {
-        this.gameModel.nextTurn();
-      }
+      // Log snapshot with mcpSeed at turn start
+      const currentSeed = this.mcpService.getCurrentSeed?.() || 'default';
+      this.logger.logSnapshot(currentSeed);
 
-      this.emit('turnComplete', {
-        turn: this.gameModel.turn - (this.gameModel.phase === 'playing' ? 1 : 0), // Adjust for potential completion
-        proposal: latestProposal,
-        votingResults: {
-          forVotes: latestProposal.forVotes,
-          againstVotes: latestProposal.againstVotes,
-          abstainVotes: latestProposal.abstainVotes,
-          status: latestProposal.status
-        }
+      this.emit('turnStart', {
+        turn: this.gameModel.turn,
+        playerId: this.gameModel.currentPlayer?.id || 'unknown'
       });
 
+      // Execute proposal phase
+      await this.executeProposalPhase();
+
+      // Get the proposal that was just created
+      const currentProposal = this.gameModel.proposals.find(p => p.status === 'pending');
+      if (!currentProposal) {
+        throw new Error('No pending proposal found after proposal phase');
+      }
+
+      // Execute voting phase
+      await this.executeVotingPhase(currentProposal.id);
+
+      // Resolve the proposal
+      this.resolveProposal(currentProposal.id);
+
+      // Log snapshot after turn completion with mcpSeed
+      const endSeed = this.mcpService.getCurrentSeed?.() || 'default';
+      this.logger.logSnapshot(endSeed);
+
+      this.emit('turnComplete', {
+        turn: this.gameModel.turn,
+        proposal: {
+          id: currentProposal.id,
+          proposerId: currentProposal.proposerId,
+          type: currentProposal.type,
+          ruleNumber: currentProposal.ruleNumber,
+          ruleText: currentProposal.ruleText,
+          status: currentProposal.status
+        },
+        votingResults: currentProposal.votes.map(v => ({
+          voterId: v.voterId,
+          choice: v.choice
+        }))
+      });
+
+      // Advance to next turn
+      this.gameModel.nextTurn();
+
     } catch (error) {
-      // Pause game on any error
       this.gameModel.pause();
+      if (this.onError) {
+        this.onError(error as Error);
+      }
       throw error;
     }
   }
@@ -246,8 +263,9 @@ export class TurnOrchestrator {
       };
 
       // Call MCP service with timeout
+      const proposalPromise = this.mcpService.propose('Generate a rule proposal', gameSnapshot);
       const proposalMarkdown = await this.withTimeout(
-        Promise.resolve(this.mcpService.propose('Generate a rule proposal', gameSnapshot)),
+        Promise.resolve(proposalPromise),
         this.gameModel.config.timeoutMs,
         `Proposal timeout for player ${currentPlayer.id}`
       );
