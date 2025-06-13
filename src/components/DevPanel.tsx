@@ -11,6 +11,7 @@ import styles from './DevPanel.module.css';
  * - Manual game controls (pause, resume, stop)
  * - Persistence debugging (save/load snapshots manually)
  * - Performance monitoring (turn timing, snapshot sizes)
+ * - Replay debugging (restore game state from snapshots)
  * 
  * Only visible when ?dev=1 is in the URL
  * 
@@ -19,6 +20,7 @@ import styles from './DevPanel.module.css';
 const DevPanel: React.FC = observer(() => {
   const { gameModel, logger, persistence, stopGame, resumeGame, isRunning } = useGame();
   const [showSnapshot, setShowSnapshot] = useState(false);
+  const [selectedReplayTurn, setSelectedReplayTurn] = useState<number | null>(null);
 
   const handleManualSave = async () => {
     try {
@@ -50,9 +52,48 @@ const DevPanel: React.FC = observer(() => {
     }
   };
 
+  const handleReplay = () => {
+    if (selectedReplayTurn === null) {
+      alert('Please select a turn to replay from');
+      return;
+    }
+
+    try {
+      const replayData = logger.getReplayData(selectedReplayTurn);
+      if (!replayData) {
+        alert('No snapshot found for the selected turn');
+        return;
+      }
+
+      if (confirm(`Replay from turn ${selectedReplayTurn}? This will restore the game state and lose current progress.`)) {
+        const snapshotEntry = {
+          timestamp: replayData.timestamp,
+          snapshot: replayData.snapshot,
+          turn: replayData.turn,
+          mcpSeed: replayData.mcpSeed
+        };
+        
+        logger.replayFromSnapshot(snapshotEntry);
+        setSelectedReplayTurn(null);
+      }
+    } catch (error) {
+      console.error('Failed to replay snapshot:', error);
+      alert('Failed to replay snapshot: ' + String(error));
+    }
+  };
+
   const gameSnapshot = gameModel.gameSnapshot;
   const snapshotHistory = logger.getSnapshotHistory();
+  const replayPoints = logger.getReplayPoints();
   
+  const prettifyJson = (snapshot: unknown): string => {
+    try {
+      return JSON.stringify(snapshot, null, 2);
+    } catch (error) {
+      return 'Error serializing snapshot: ' + String(error);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -94,6 +135,35 @@ const DevPanel: React.FC = observer(() => {
       </div>
 
       <div className={styles.section}>
+        <h4>Replay Debugging</h4>
+        <div className={styles.controls}>
+          <select 
+            value={selectedReplayTurn || ''} 
+            onChange={(e) => setSelectedReplayTurn(e.target.value ? Number(e.target.value) : null)}
+            className={styles.select}
+          >
+            <option value="">Select turn to replay...</option>
+            {replayPoints.map(point => (
+              <option key={point.turn} value={point.turn}>
+                Turn {point.turn} ({new Date(point.timestamp).toLocaleTimeString()})
+                {point.mcpSeed ? ' [seeded]' : ''}
+              </option>
+            ))}
+          </select>
+          <button 
+            onClick={handleReplay}
+            disabled={selectedReplayTurn === null}
+            className={`${styles.button} ${styles.warning}`}
+          >
+            🔄 Replay Turn
+          </button>
+        </div>
+        <div className={styles.info}>
+          Replay points: {replayPoints.length} available
+        </div>
+      </div>
+
+      <div className={styles.section}>
         <h4>Persistence</h4>
         <div className={styles.controls}>
           <button onClick={handleManualSave} className={styles.button}>
@@ -123,7 +193,7 @@ const DevPanel: React.FC = observer(() => {
         </button>
         {showSnapshot && (
           <pre className={styles.snapshot}>
-            {JSON.stringify(gameSnapshot, null, 2)}
+            {prettifyJson(gameSnapshot)}
           </pre>
         )}
       </div>
@@ -131,16 +201,20 @@ const DevPanel: React.FC = observer(() => {
       <div className={styles.section}>
         <h4>Snapshot History ({snapshotHistory.length})</h4>
         <div className={styles.logs}>
-          {snapshotHistory.slice(-5).map((entry: any, index: number) => (
-            <div key={index} className={styles.logEntry}>
-              <span className={styles.timestamp}>
-                {new Date(entry.timestamp).toLocaleTimeString()}
-              </span>
-              <span className={styles.logMessage}>
-                Turn {entry.turn || 'N/A'}: {entry.action || 'snapshot'}
-              </span>
-            </div>
-          ))}
+          {snapshotHistory.slice(-5).map((entry: unknown, index: number) => {
+            const typedEntry = entry as { timestamp: number; turn?: number; action?: string; mcpSeed?: string };
+            return (
+              <div key={index} className={styles.logEntry}>
+                <span className={styles.timestamp}>
+                  {new Date(typedEntry.timestamp).toLocaleTimeString()}
+                </span>
+                <span className={styles.logMessage}>
+                  Turn {typedEntry.turn || 'N/A'}: {typedEntry.action || 'snapshot'}
+                  {typedEntry.mcpSeed ? ' [seeded]' : ''}
+                </span>
+              </div>
+            );
+          })}
           {snapshotHistory.length === 0 && (
             <div className={styles.noLogs}>No snapshots yet</div>
           )}

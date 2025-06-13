@@ -243,47 +243,131 @@ describe('SnapshotLogger', () => {
 
   describe('snapshot history', () => {
     it('should maintain snapshot history', () => {
-      logger.enableAutoLogging();
+      const logger = new SnapshotLogger(gameModel);
       
-      // Create some changes
-      gameModel.addPlayer({
-        id: 'player1',
-        name: 'Player 1',
-        icon: '🤖',
-        llmEndpoint: 'http://localhost:3001',
-        points: 0,
-        isActive: false
-      });
-      
-      gameModel.addPlayer({
-        id: 'player2',
-        name: 'Player 2',
-        icon: '🦾',
-        llmEndpoint: 'http://localhost:3002',
-        points: 0,
-        isActive: false
-      });
+      // Enable logging first
+      logger.logSnapshot();
       
       const history = logger.getSnapshotHistory();
-      expect(history.length).toBeGreaterThan(0);
-      expect(history[0]).toHaveProperty('timestamp');
-      expect(history[0]).toHaveProperty('snapshot');
+      expect(history).toHaveLength(1);
+      expect(history[0].snapshot).toBeDefined();
+      expect(history[0].timestamp).toBeDefined();
     });
 
-    it('should limit history size', () => {
-      logger.enableAutoLogging();
+    it('should limit history size', async () => {
+      const logger = new SnapshotLogger(gameModel);
       
-      // Create many changes to exceed history limit
-      for (let i = 0; i < 150; i++) {
-        gameModel.addRule({
-          id: 300 + i,
-          text: `Test rule ${i}`,
-          mutable: true
-        });
+      // Generate more snapshots than the limit (50)
+      for (let i = 0; i < 55; i++) {
+        logger.logSnapshot();
+        await new Promise(resolve => setTimeout(resolve, 1)); // Small delay to ensure different timestamps
       }
       
       const history = logger.getSnapshotHistory();
-      expect(history.length).toBeLessThanOrEqual(100); // Default limit
+      expect(history).toHaveLength(50); // Should be limited to 50
+    });
+  });
+
+  describe('replay debugging', () => {
+    it('should store mcpSeed with snapshots', () => {
+      const logger = new SnapshotLogger(gameModel);
+      const testSeed = 'test-seed-123';
+      
+      logger.logSnapshot(testSeed);
+      
+      const history = logger.getSnapshotHistory();
+      expect(history).toHaveLength(1);
+      expect(history[0].mcpSeed).toBe(testSeed);
+    });
+
+    it('should provide replay data for specific turns', () => {
+      const logger = new SnapshotLogger(gameModel);
+      
+      // Simulate turn progression
+      gameModel.turn = 1;
+      logger.logSnapshot('seed-turn-1');
+      
+      gameModel.turn = 2;
+      logger.logSnapshot('seed-turn-2');
+      
+      // Get replay data for turn 1
+      const replayData = logger.getReplayData(1);
+      expect(replayData).toBeDefined();
+      expect(replayData?.turn).toBe(1);
+      expect(replayData?.mcpSeed).toBe('seed-turn-1');
+      expect(replayData?.snapshot).toBeDefined();
+    });
+
+    it('should return null for non-existent turn replay data', () => {
+      const logger = new SnapshotLogger(gameModel);
+      
+      const replayData = logger.getReplayData(999);
+      expect(replayData).toBeNull();
+    });
+
+    it('should provide sorted replay points', () => {
+      const logger = new SnapshotLogger(gameModel);
+      
+      // Log snapshots in non-sequential order
+      gameModel.turn = 3;
+      logger.logSnapshot('seed-turn-3');
+      
+      gameModel.turn = 1;
+      logger.logSnapshot('seed-turn-1');
+      
+      gameModel.turn = 2;
+      logger.logSnapshot('seed-turn-2');
+      
+      const replayPoints = logger.getReplayPoints();
+      expect(replayPoints).toHaveLength(3);
+      expect(replayPoints[0].turn).toBe(1);
+      expect(replayPoints[1].turn).toBe(2);
+      expect(replayPoints[2].turn).toBe(3);
+      
+      // Check mcpSeed is included
+      expect(replayPoints[0].mcpSeed).toBe('seed-turn-1');
+      expect(replayPoints[1].mcpSeed).toBe('seed-turn-2');
+      expect(replayPoints[2].mcpSeed).toBe('seed-turn-3');
+    });
+
+    it('should successfully replay from snapshot', () => {
+      const logger = new SnapshotLogger(gameModel);
+      
+      // Setup initial state
+      gameModel.turn = 5;
+      gameModel.phase = 'playing';
+      logger.logSnapshot('seed-turn-5');
+      
+      // Change state
+      gameModel.turn = 10;
+      gameModel.phase = 'completed';
+      
+      // Get snapshot entry for replay
+      const history = logger.getSnapshotHistory();
+      const snapshotEntry = history[0];
+      
+      // Replay from snapshot
+      logger.replayFromSnapshot(snapshotEntry);
+      
+      // Verify state was restored
+      expect(gameModel.turn).toBe(5);
+      expect(gameModel.phase).toBe('playing');
+    });
+
+    it('should handle replay errors gracefully', () => {
+      const logger = new SnapshotLogger(gameModel);
+      
+      // Create invalid snapshot entry
+      const invalidSnapshotEntry = {
+        timestamp: Date.now(),
+        snapshot: { invalid: 'data' } as any,
+        turn: 1,
+        mcpSeed: 'test-seed'
+      };
+      
+      expect(() => {
+        logger.replayFromSnapshot(invalidSnapshotEntry);
+      }).toThrow();
     });
   });
 }); 

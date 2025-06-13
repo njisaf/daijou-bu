@@ -45,6 +45,27 @@ export interface GameSnapshot {
 }
 
 /**
+ * Common interface for MCP (LLM) services
+ * Implemented by both OpenAI and Mock services
+ */
+export interface MCPService {
+  /**
+   * Generate a proposal based on game state
+   */
+  propose(prompt: string, gameSnapshot: GameSnapshot): Promise<string> | string;
+  
+  /**
+   * Generate a vote based on proposal and game state
+   */
+  vote(proposalMarkdown: string, gameSnapshot: GameSnapshot): Promise<'FOR' | 'AGAINST' | 'ABSTAIN'> | 'FOR' | 'AGAINST' | 'ABSTAIN';
+  
+  /**
+   * Get current seed for deterministic replay (optional)
+   */
+  getCurrentSeed?(): string;
+}
+
+/**
  * Mock MCP Service that simulates LLM responses with deterministic behavior
  * 
  * This service uses a seeded pseudo-random number generator to ensure
@@ -53,13 +74,20 @@ export interface GameSnapshot {
  * 
  * @see devbot_kickoff_prompt.md Section 4 for mock MCP requirements
  */
-export class MockMCPService {
+export class MockMCPService implements MCPService {
   private rng: SeededRandom;
   private proposalTemplates: string[];
   private ruleTexts: string[];
+  private currentSeed: number;
 
   constructor(seed: number = Date.now()) {
+    this.currentSeed = seed;
     this.rng = new SeededRandom(seed);
+    
+    // Log initialization status
+    console.log('🎭 [MockMCP] Using deterministic mock LLM service');
+    console.log(`🎭 [MockMCP] Seed: ${seed}`);
+    console.log('🎭 [MockMCP] Behavior: Deterministic and predictable');
     
     // Template proposals for different types
     this.proposalTemplates = [
@@ -103,6 +131,8 @@ export class MockMCPService {
    * @returns Proposal in markdown format
    */
   propose(promptP: string, gameSnapshot: GameSnapshot): string {
+    console.log('🎭 [MockMCP] Generating mock proposal...');
+    
     // Get existing rule numbers to avoid conflicts
     const existingRuleNumbers = new Set(gameSnapshot.rules.map(rule => rule.id));
     const existingProposalNumbers = new Set(gameSnapshot.proposals.map(proposal => proposal.id));
@@ -159,10 +189,13 @@ export class MockMCPService {
     }
 
     // Format as markdown
-    return `### Proposal ${proposalId}
+    const result = `### Proposal ${proposalId}
 Type: ${proposalType}
 Number: ${ruleNumber}
 Text: "${ruleText}"`;
+
+    console.log(`✅ [MockMCP] Mock proposal generated (ID: ${proposalId})`);
+    return result;
   }
 
   /**
@@ -174,7 +207,7 @@ Text: "${ruleText}"`;
    * @returns Vote choice: 'FOR', 'AGAINST', or 'ABSTAIN'
    */
   vote(proposalMarkdown: string, gameSnapshot: GameSnapshot): 'FOR' | 'AGAINST' | 'ABSTAIN' {
-    // Simple heuristic-based voting with randomness
+    console.log('🎭 [MockMCP] Generating mock vote...');
     
     // Extract proposal text for analysis
     const textMatch = proposalMarkdown.match(/Text: "(.+)"/);
@@ -211,13 +244,24 @@ Text: "${ruleText}"`;
     // Generate random vote based on bias
     const rand = this.rng.random();
     
+    let result: 'FOR' | 'AGAINST' | 'ABSTAIN';
     if (rand < bias * 0.7) {
-      return 'FOR';
+      result = 'FOR';
     } else if (rand < bias * 0.7 + 0.2) {
-      return 'AGAINST';
+      result = 'AGAINST';
     } else {
-      return 'ABSTAIN';
+      result = 'ABSTAIN';
     }
+
+    console.log(`✅ [MockMCP] Mock vote generated: ${result}`);
+    return result;
+  }
+
+  /**
+   * Get current seed for deterministic replay
+   */
+  getCurrentSeed(): string {
+    return this.currentSeed.toString();
   }
 
   /**
@@ -225,6 +269,7 @@ Text: "${ruleText}"`;
    * Useful for reproducing specific sequences
    */
   reseed(newSeed: number): void {
+    this.currentSeed = newSeed;
     this.rng = new SeededRandom(newSeed);
   }
 } 

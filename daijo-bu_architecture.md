@@ -165,3 +165,45 @@ Developers can paste a snapshot back into `GameModel.create()` to reproduce any 
 7. Add download packaging & zip helper.
 8. Iterate! 🚀
 
+
+---
+
+# 📌 rev 3 Addendum — Phase 4 Enhancements
+
+This addendum layers Phase 4 hardening features onto the existing **rev 2** architecture. No diagrams or core flows change; instead we expand metadata, validation, and dev tooling.
+
+## 7.1 Packaging Metadata Extension
+* **RULEBOOK.md** entries now include: turn #, proposer, FOR/AGAINST/ABSTAIN counts, and a *superseded* flag if the rule text was later amended or repealed.
+* **SCORE_REPORT.md** gains a **Stats** section with, per player: total FOR votes, AGAINST votes, ABSTAINS, proposals authored, proposals adopted.
+* A `game‑stats.json` file is added to the ZIP for programmatic analysis.
+
+## 2.1 RuleEngine — Semantic Validation (Rule 115)
+* After applying a candidate mutation, `RuleEngine.validateSemantic()` simulates the resulting rulebook and ensures:
+  * Immutable rules cannot be repealed unless transmuted to Mutable **in the same proposal**.
+  * Transmuting a rule that is already of the target mutability is void.
+  * No duplicate rule numbers exist.
+  * Rule text must be non‑empty.
+* Violations raise `RuleValidationError`, causing the proposal to fail automatically.
+
+## 3.3 Replay & Debug
+* Each turn’s `MCPSeed` plus snapshot hash is stored in persistence.
+* **DevPanel** now has a **Replay Turn** button that re‑executes the selected snapshot & seed, showing a diff overlay.
+
+## 4.1 Real LLM Agent Adapter
+* New optional adapter `OpenAIAgent` implements the MCP interface using OpenAI Chat completions.
+* Activated when `process.env.LLM_TOKEN` is present; otherwise skipped.
+* Timeout is fixed at 5 000 ms. Results are parsed through the same Zod validation.
+
+## 8.1 Browser E2E in CI
+* GitHub Actions job **ci‑e2e.yml** runs Playwright headless Chromium:
+  1. Starts Vite dev server.
+  2. Plays five turns on mocks.
+  3. Reloads the page and verifies persistence (scoreboard & proposal count).
+
+## 4.2 Accessibility & Keyboard Navigation
+* `@axe‑core/react` integrated in dev; violations of *serious* or *critical* impact fail CI.
+* Component tests ensure DevPanel and ErrorBanner are operable via keyboard only.
+
+---
+
+*End of rev 3 addendum.*

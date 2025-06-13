@@ -1,14 +1,25 @@
-import { onSnapshot, getSnapshot, onAction, type SnapshotOut } from 'mobx-state-tree';
+import { onSnapshot, getSnapshot, onAction, type SnapshotOut, applySnapshot } from 'mobx-state-tree';
 import { GameModel } from '../models/GameModel';
 
 /**
- * Snapshot entry for history tracking
+ * Snapshot entry for history tracking with replay debugging support
  */
 interface SnapshotEntry {
   timestamp: number;
   snapshot: SnapshotOut<typeof GameModel>;
   turn?: number;
   action?: string;
+  mcpSeed?: string; // Add mcpSeed for deterministic replay
+}
+
+/**
+ * Replay data for debugging
+ */
+export interface ReplayData {
+  snapshot: SnapshotOut<typeof GameModel>;
+  mcpSeed?: string;
+  turn: number;
+  timestamp: number;
 }
 
 /**
@@ -53,9 +64,9 @@ export class SnapshotLogger {
   }
 
   /**
-   * Log a snapshot to console and history
+   * Log a snapshot to console and history with mcpSeed for replay
    */
-  logSnapshot(): void {
+  logSnapshot(mcpSeed?: string): void {
     if (!this.gameModel.config.enableSnapshotLogging) {
       return;
     }
@@ -72,8 +83,8 @@ export class SnapshotLogger {
       console.log('[SNAPSHOT-DIFF]', JSON.stringify(diff, null, 2));
     }
 
-    // Add to history
-    this._addToHistory(currentSnapshot);
+    // Add to history with mcpSeed
+    this._addToHistory(currentSnapshot, mcpSeed);
     
     // Update tracking
     this._lastSnapshot = currentSnapshot;
@@ -259,20 +270,76 @@ export class SnapshotLogger {
   }
 
   /**
-   * Add snapshot to history with size limit
+   * Replay game state from a snapshot
    */
-  private _addToHistory(snapshot: SnapshotOut<typeof GameModel>): void {
+  replayFromSnapshot(snapshotEntry: SnapshotEntry): void {
+    try {
+      // Apply the snapshot to restore game state
+      applySnapshot(this.gameModel, snapshotEntry.snapshot);
+      
+      // Log the replay for debugging
+      console.log('[REPLAY]', `Restored game to turn ${snapshotEntry.turn}`, {
+        mcpSeed: snapshotEntry.mcpSeed,
+        timestamp: snapshotEntry.timestamp
+      });
+      
+      // If mcpSeed was provided, log it for deterministic replay
+      if (snapshotEntry.mcpSeed) {
+        console.log('[REPLAY-SEED]', snapshotEntry.mcpSeed);
+      }
+    } catch (error) {
+      console.error('[REPLAY-ERROR]', 'Failed to replay snapshot:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get replay data for a specific turn
+   */
+  getReplayData(turn: number): ReplayData | null {
+    const entry = this._history.find(entry => entry.turn === turn);
+    if (!entry) {
+      return null;
+    }
+
+    return {
+      snapshot: entry.snapshot,
+      mcpSeed: entry.mcpSeed,
+      turn: entry.turn || 0,
+      timestamp: entry.timestamp
+    };
+  }
+
+  /**
+   * Get all available replay points
+   */
+  getReplayPoints(): Array<{ turn: number; timestamp: number; mcpSeed?: string }> {
+    return this._history
+      .filter(entry => entry.turn !== undefined)
+      .map(entry => ({
+        turn: entry.turn!,
+        timestamp: entry.timestamp,
+        mcpSeed: entry.mcpSeed
+      }))
+      .sort((a, b) => a.turn - b.turn);
+  }
+
+  /**
+   * Add snapshot to history with mcpSeed
+   */
+  private _addToHistory(snapshot: SnapshotOut<typeof GameModel>, mcpSeed?: string): void {
     const entry: SnapshotEntry = {
       timestamp: Date.now(),
       snapshot,
-      turn: snapshot.turn
+      turn: this.gameModel.turn,
+      mcpSeed
     };
 
     this._history.push(entry);
 
-    // Limit history size (keep last 100 entries)
-    if (this._history.length > 100) {
-      this._history = this._history.slice(-100);
+    // Keep only last 50 snapshots to prevent memory issues
+    if (this._history.length > 50) {
+      this._history.shift();
     }
   }
 

@@ -13,6 +13,8 @@ Document all code with comments; if in doubt us JSDoc standards. Assume that you
 
 Write code for clarity and readability.
 
-Always review and update the README.md.
+Always review and update the README.md. Update DEVELOPMENT.md with a development report for each major phase of development; follow the existing pattern.
 
 Always review the daijo-bu_architecture.md docs for guidance. Hesitate before updating daijo-bu_architecture.md; prompt if we're going beyond its design.
+
+IMPORTANT: You will be unable to see or access any .env file. You can try but you will fail, due to security settings. Prompt the user to create it or confirm its existence.

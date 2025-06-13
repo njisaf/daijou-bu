@@ -221,7 +221,7 @@ describe('RuleEngine', () => {
       const newRules = engine.applyProposal(proposal, existingRules);
       
       expect(newRules).toHaveLength(2);
-      const newRule = newRules.find((r: any) => r.id === 301);
+      const newRule = newRules.find((r: RuleModelType) => r.id === 301);
       expect(newRule).toBeDefined();
       expect(newRule?.text).toBe('New rule text');
       expect(newRule?.mutable).toBe(true); // New rules are mutable by default
@@ -422,6 +422,129 @@ describe('RuleEngine', () => {
       });
 
       expect(() => engine.applyProposalSafely(invalidProposal, existingRules)).toThrow('Cannot add rule 201: rule already exists');
+    });
+  });
+
+  describe('Enhanced Rule Validation', () => {
+    it('should allow repeal of immutable rule if transmuted in same proposal set', () => {
+      const rules = [
+        createRule({ id: 101, text: 'Immutable rule', mutable: false })
+      ];
+
+      const transmuteProposal = {
+        id: 1,
+        proposerId: 'alice',
+        type: 'Transmute' as const,
+        ruleNumber: 101,
+        ruleText: 'Rule 101 is hereby transmuted to mutable',
+        status: 'passed' as const,
+        votes: [],
+        timestamp: Date.now()
+      };
+
+      const repealProposal = createProposal({
+        id: 2,
+        proposerId: 'alice',
+        type: 'Repeal',
+        ruleNumber: 101,
+        ruleText: 'Rule 101 is hereby repealed',
+        timestamp: Date.now()
+      });
+
+      // Should allow repeal when transmutation is in prior proposals
+      expect(() => engine.validateProposal(repealProposal, rules, [transmuteProposal])).not.toThrow();
+    });
+
+    it('should reject repeal of immutable rule without transmutation', () => {
+      const rules = [
+        createRule({ id: 101, text: 'Immutable rule', mutable: false })
+      ];
+
+      const repealProposal = createProposal({
+        id: 1,
+        proposerId: 'alice',
+        type: 'Repeal',
+        ruleNumber: 101,
+        ruleText: 'Rule 101 is hereby repealed',
+        timestamp: Date.now()
+      });
+
+      // Should reject repeal without transmutation
+      expect(() => engine.validateProposal(repealProposal, rules, [])).toThrow('Cannot repeal immutable rule 101');
+    });
+
+    it('should allow amendment of immutable rule if transmuted in same proposal set', () => {
+      const rules = [
+        createRule({ id: 101, text: 'Immutable rule', mutable: false })
+      ];
+
+      const transmuteProposal = createProposal({
+        id: 1,
+        proposerId: 'alice',
+        type: 'Transmute',
+        ruleNumber: 101,
+        ruleText: 'Rule 101 is hereby transmuted to mutable',
+        status: 'passed',
+        timestamp: Date.now()
+      });
+
+      const amendProposal = createProposal({
+        id: 2,
+        proposerId: 'alice',
+        type: 'Amend',
+        ruleNumber: 101,
+        ruleText: 'Amended immutable rule text',
+        timestamp: Date.now()
+      });
+
+      // Should allow amendment when transmutation is in prior proposals
+      expect(() => engine.validateProposal(amendProposal, rules, [transmuteProposal])).not.toThrow();
+    });
+
+    it('should reject amendment of immutable rule without transmutation', () => {
+      const rules = [
+        createRule({ id: 101, text: 'Immutable rule', mutable: false })
+      ];
+
+      const amendProposal = createProposal({
+        id: 1,
+        proposerId: 'alice',
+        type: 'Amend',
+        ruleNumber: 101,
+        ruleText: 'Attempted amendment',
+        timestamp: Date.now()
+      });
+
+      // Should reject amendment without transmutation
+      expect(() => engine.validateProposal(amendProposal, rules, [])).toThrow('Cannot amend immutable rule 101');
+    });
+
+    it('should only consider passed transmutation proposals', () => {
+      const rules = [
+        createRule({ id: 101, text: 'Immutable rule', mutable: false })
+      ];
+
+      const failedTransmuteProposal = createProposal({
+        id: 1,
+        proposerId: 'alice',
+        type: 'Transmute',
+        ruleNumber: 101,
+        ruleText: 'Rule 101 is hereby transmuted to mutable',
+        status: 'failed', // This proposal failed
+        timestamp: Date.now()
+      });
+
+      const repealProposal = createProposal({
+        id: 2,
+        proposerId: 'alice',
+        type: 'Repeal',
+        ruleNumber: 101,
+        ruleText: 'Rule 101 is hereby repealed',
+        timestamp: Date.now()
+      });
+
+      // Should reject repeal when transmutation failed
+      expect(() => engine.validateProposal(repealProposal, rules, [failedTransmuteProposal])).toThrow('Cannot repeal immutable rule 101');
     });
 
     it('should detect multiple consistency violations', () => {

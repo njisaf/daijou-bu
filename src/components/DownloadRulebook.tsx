@@ -17,7 +17,6 @@ import styles from './DownloadRulebook.module.css';
 const DownloadRulebook: React.FC = observer(() => {
   const { gameModel } = useGame();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [packageInfo, setPackageInfo] = useState<{
     filename: string;
     size: number;
@@ -30,20 +29,22 @@ const DownloadRulebook: React.FC = observer(() => {
   }
 
   const handleDownload = async () => {
-    setIsGenerating(true);
-    
     try {
+      setIsGenerating(true);
       const packager = new GamePackager();
       
-      // Validate game before packaging
-      packager.validateGameForPackaging(gameModel);
-      
-      // Generate the package
+      // Use the correct method to create the package
       const packageData = await packager.createGamePackage(gameModel);
       
-      // Create download URL
-      const url = packager.createDownloadUrl(packageData);
-      setDownloadUrl(url);
+      // Create temporary URL and trigger download
+      const url = URL.createObjectURL(packageData.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = packageData.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       
       // Store package info for display
       setPackageInfo({
@@ -52,24 +53,9 @@ const DownloadRulebook: React.FC = observer(() => {
         contents: packageData.contents
       });
       
-      // Trigger download
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = packageData.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up URL after a delay
-      setTimeout(() => {
-        packager.revokeDownloadUrl(url);
-        setDownloadUrl(null);
-      }, 1000);
-      
     } catch (error) {
       console.error('Failed to generate download:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      alert(`Failed to generate download: ${errorMessage}`);
+      alert('Failed to generate download. Please try again.');
     } finally {
       setIsGenerating(false);
     }

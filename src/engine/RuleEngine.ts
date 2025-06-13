@@ -64,17 +64,18 @@ export class RuleEngine {
   /**
    * Validates whether a proposal is legal under the current rules
    * 
-   * Validation rules:
+   * Enhanced validation rules:
    * - Add: Rule number must not already exist
    * - Amend: Rule must exist and be mutable (Rule 111)
-   * - Repeal: Rule must exist and be mutable (Rule 111)
+   * - Repeal: Rule must exist and be mutable (Rule 111), or be transmuted in same proposal
    * - Transmute: Rule must exist (can transmute any rule)
    * 
    * @param proposal - The proposal to validate
    * @param currentRules - Current rule set
+   * @param priorProposals - Previously applied proposals in the same turn (for multi-part proposals)
    * @throws Error if proposal is invalid
    */
-  validateProposal(proposal: IProposal, currentRules: IRule[]): void {
+  validateProposal(proposal: IProposal, currentRules: IRule[], priorProposals: IProposal[] = []): void {
     const targetRule = currentRules.find(rule => rule.id === proposal.ruleNumber);
 
     switch (proposal.type) {
@@ -88,7 +89,9 @@ export class RuleEngine {
         if (!targetRule) {
           throw new Error(`Cannot amend rule ${proposal.ruleNumber}: rule does not exist`);
         }
-        if (targetRule.isImmutable) {
+        // Check if rule was transmuted to mutable in a prior proposal this turn
+        const wasTransmutedToMutable = this.wasRuleTransmutedToMutable(proposal.ruleNumber, priorProposals);
+        if (targetRule.isImmutable && !wasTransmutedToMutable) {
           throw new Error(`Cannot amend immutable rule ${proposal.ruleNumber}. Must transmute to mutable first (Rule 111)`);
         }
         break;
@@ -97,7 +100,9 @@ export class RuleEngine {
         if (!targetRule) {
           throw new Error(`Cannot repeal rule ${proposal.ruleNumber}: rule does not exist`);
         }
-        if (targetRule.isImmutable) {
+        // Enhanced validation: Allow repeal if transmuted to mutable in same proposal set
+        const wasTransmuted = this.wasRuleTransmutedToMutable(proposal.ruleNumber, priorProposals);
+        if (targetRule.isImmutable && !wasTransmuted) {
           throw new Error(`Cannot repeal immutable rule ${proposal.ruleNumber}. Must transmute to mutable first (Rule 111)`);
         }
         break;
@@ -230,6 +235,23 @@ export class RuleEngine {
     }
 
     return conflicts;
+  }
+
+  /**
+   * Checks if a rule was transmuted to mutable in prior proposals
+   * 
+   * @param ruleNumber - The rule number to check
+   * @param priorProposals - Array of prior proposals to check
+   * @returns true if the rule was transmuted from immutable to mutable
+   * @private
+   */
+  private wasRuleTransmutedToMutable(ruleNumber: number, priorProposals: IProposal[]): boolean {
+    // Look for a transmutation proposal that would make this rule mutable
+    return priorProposals.some(proposal => 
+      proposal.type === 'Transmute' && 
+      proposal.ruleNumber === ruleNumber &&
+      proposal.status === 'passed'
+    );
   }
 
   /**
