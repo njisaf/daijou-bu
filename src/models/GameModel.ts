@@ -61,7 +61,10 @@ export const GameModel = types
     phase: types.optional(types.enumeration<GamePhase>(['setup', 'playing', 'paused', 'completed']), 'setup'),
     
     /** Snapshot history for time-travel debugging */
-    history: types.optional(types.array(SnapshotHistoryEntry), [])
+    history: types.optional(types.array(SnapshotHistoryEntry), []),
+    
+    /** Score entries for Rule 303 format reporting */
+    scoreEntries: types.optional(types.array(types.string), [])
   })
   .views(self => ({
     /**
@@ -384,6 +387,99 @@ export const GameModel = types
     },
     
     /**
+     * Load rules from the loadInitialRules utility
+     * This replaces any existing rules with the canonical ruleset plus Prompt P
+     */
+    loadFromRules(ruleSnapshots: Array<{ id: number; text: string; mutable: boolean }>) {
+      if (self.phase !== 'setup') {
+        throw new Error('Can only load rules during setup phase');
+      }
+
+      // Clear existing rules
+      self.rules.clear();
+
+      // Add all provided rules
+      for (const ruleSnapshot of ruleSnapshots) {
+        this.addRule(ruleSnapshot);
+      }
+
+      console.log(`📋 [GameModel] Loaded ${ruleSnapshots.length} rules from loadInitialRules`);
+      console.log(`📋 [GameModel] Prompt P: "${self.config.promptP}"`);
+    },
+
+    /**
+     * Set the game phase - Stage 6.5 method for tests
+     */
+    setPhase(newPhase: GamePhase) {
+      self.phase = newPhase;
+      console.log(`🎮 [GameModel] Phase changed to: ${newPhase}`);
+    },
+
+    /**
+     * Set the turn number - helper method for tests
+     */
+    setTurn(turnNumber: number) {
+      self.turn = turnNumber;
+    },
+
+    /**
+     * Update player counters per Rules 301-303 - Stage 6.5 implementation
+     */
+    updatePlayerCounters(proposalId: number) {
+      const proposal = self.proposals.find(p => p.id === proposalId);
+      if (!proposal) {
+        console.warn(`⚠️ [GameModel] updatePlayerCounters: Proposal ${proposalId} not found`);
+        return;
+      }
+
+      // Update proposer counters
+      const proposer = self.players.find(p => p.id === proposal.proposerId);
+      if (proposer && proposal.status === 'passed') {
+        proposer.incrementProposalCounter(1); // Pass +1 delta for successful proposal
+      }
+
+      // Update voter accuracy counters
+      for (const vote of proposal.votes) {
+        const voter = self.players.find(p => p.id === vote.voterId); // Use voterId, not playerId
+        if (voter) {
+          const wasAccurate = (vote.choice === 'FOR' && proposal.status === 'passed') ||
+                            (vote.choice === 'AGAINST' && proposal.status === 'failed');
+          voter.recordVoteAccuracy(wasAccurate);
+        }
+      }
+
+      // Apply missed vote penalties (-10 points each)
+      const voterIds = new Set(proposal.votes.map(v => v.voterId)); // Use voterId
+      for (const player of self.players) {
+        if (!voterIds.has(player.id) && player.id !== proposal.proposerId) {
+          player.applyMissedVotePenalty();
+        }
+      }
+
+      console.log(`📊 [GameModel] Updated player counters for proposal ${proposalId}`);
+    },
+
+    /**
+     * Append a score entry in Rule 303 format - Stage 6.5 implementation
+     */
+    appendScoreEntry() {
+      const playerEntries = self.players.map(player => {
+        const pointsDisplay = player.points >= 0 ? `⭐${player.points}pts` : `⭐${player.points}pts`;
+        return `${player.name} ${pointsDisplay} (${player.proposalsPassed} passed)`;
+      }).join(' | ');
+
+      // Count proposals in this turn
+      const turnProposals = self.proposals.filter(p => p.turn === self.turn);
+      const passedCount = turnProposals.filter(p => p.status === 'passed').length;
+      const failedCount = turnProposals.filter(p => p.status === 'failed').length;
+
+      const entry = `Turn ${self.turn} — ${playerEntries} — ${passedCount} proposals passed, ${failedCount} failed`;
+      self.scoreEntries.push(entry);
+      
+      console.log(`📝 [GameModel] Appended score entry: ${entry}`);
+    },
+
+    /**
      * Generate the final score report
      */
     generateScoreReport(): string {
@@ -407,28 +503,15 @@ export const GameModel = types
       report += `- Adopted Proposals: ${self.proposals.filter(p => p.status === 'passed').length}\n`;
       report += `- Victory Target: ${self.config.victoryTarget} points\n`;
       
+      // Add Rule 303 format score entries if available
+      if (self.scoreEntries.length > 0) {
+        report += '\n## Rule 303 Score Entries\n\n';
+        for (const entry of self.scoreEntries) {
+          report += `- ${entry}\n`;
+        }
+      }
+      
       return report;
-    },
-
-    /**
-     * Load rules from the loadInitialRules utility
-     * This replaces any existing rules with the canonical ruleset plus Prompt P
-     */
-    loadFromRules(ruleSnapshots: Array<{ id: number; text: string; mutable: boolean }>) {
-      if (self.phase !== 'setup') {
-        throw new Error('Can only load rules during setup phase');
-      }
-
-      // Clear existing rules
-      self.rules.clear();
-
-      // Add all provided rules
-      for (const ruleSnapshot of ruleSnapshots) {
-        this.addRule(ruleSnapshot);
-      }
-
-      console.log(`📋 [GameModel] Loaded ${ruleSnapshots.length} rules from loadInitialRules`);
-      console.log(`📋 [GameModel] Prompt P: "${self.config.promptP}"`);
     }
   })); 
 
@@ -502,7 +585,8 @@ export function createGame(options: {
     proposals: [],
     turn: 0,
     phase: 'setup',
-    history: []
+    history: [],
+    scoreEntries: []
   });
 
   // Load rules from the ruleset

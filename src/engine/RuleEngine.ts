@@ -367,4 +367,60 @@ export class RuleEngine {
     
     return newRules;
   }
+
+  /**
+   * Sort rules by precedence (higher precedence first)
+   * 
+   * Precedence rules:
+   * 1. Immutable rules come before mutable rules (Rule 109)
+   * 2. Lower-numbered rules come before higher-numbered rules (Rule 113)
+   * 
+   * @param rules - Array of rules to sort
+   * @returns New array sorted by precedence
+   */
+  static sortByPrecedence(rules: IRule[]): IRule[] {
+    const engine = new RuleEngine();
+    return [...rules].sort((a, b) => {
+      if (engine.hasHigherPrecedence(a, b)) return -1;
+      if (engine.hasHigherPrecedence(b, a)) return 1;
+      return 0;
+    });
+  }
+
+  /**
+   * Validate semantic consistency of a rule mutation
+   * 
+   * This is a simplified semantic validation that checks for:
+   * - Rule existence for amendments and repeals
+   * - Mutability constraints
+   * - Basic semantic consistency
+   * 
+   * @param gameSnapshot - Current game state
+   * @param mutation - Proposed mutation
+   * @returns true if semantically valid, false otherwise
+   */
+  static validateSemantic(gameSnapshot: any, mutation: any): boolean {
+    try {
+      const engine = new RuleEngine();
+      
+      // Extract rules from snapshot
+      const rules = gameSnapshot.rules || [];
+      
+      // Convert mutation to proposal format for validation
+      const proposal = {
+        type: mutation.type,
+        ruleNumber: mutation.number,
+        ruleText: mutation.text || '',
+        status: 'pending' as const
+      };
+      
+      // Use existing validation logic
+      engine.validateProposal(proposal, rules);
+      
+      return true;
+    } catch (error) {
+      // If validation throws, it's semantically invalid
+      return false;
+    }
+  }
 } 

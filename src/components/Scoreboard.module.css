@@ -103,6 +103,77 @@
   font-weight: 500;
 }
 
+.scoreValue {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.proposalsCount {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.proposalsLabel {
+  color: #666;
+  font-weight: 500;
+}
+
+.proposalsValue {
+  font-weight: 600;
+  color: #1976d2;
+}
+
+.voteAccuracy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.accuracyLabel {
+  color: #666;
+  font-weight: 500;
+}
+
+.accuracyValue {
+  font-weight: 600;
+  color: #4caf50;
+}
+
+/* Accessibility: Screen reader only content */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Point change flash animation for TurnBanner integration */
+.pointsFlash {
+  animation: pointsChange 3s ease-in-out;
+}
+
+@keyframes pointsChange {
+  0% { 
+    background-color: #ffeb3b;
+    transform: scale(1.05);
+  }
+  50% { 
+    background-color: #ffc107;
+  }
+  100% { 
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
 .victory {
   margin-top: 1rem;
   padding: 1rem;

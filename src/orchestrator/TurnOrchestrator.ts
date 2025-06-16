@@ -238,29 +238,7 @@ export class TurnOrchestrator {
       });
 
       // Generate game snapshot for MCP service
-      const gameSnapshot: GameSnapshot = {
-        players: this.gameModel.players.map(p => ({
-          id: p.id,
-          name: p.name,
-          points: p.points,
-          isActive: p.isActive
-        })),
-        rules: this.gameModel.rules.map(r => ({
-          id: r.id,
-          text: r.text,
-          mutable: r.mutable
-        })),
-        proposals: this.gameModel.proposals.map(p => ({
-          id: p.id,
-          proposerId: p.proposerId,
-          type: p.type,
-          ruleNumber: p.ruleNumber,
-          ruleText: p.ruleText,
-          status: p.status
-        })),
-        turn: this.gameModel.turn,
-        phase: this.gameModel.phase
-      };
+      const gameSnapshot = this.gameModel.gameSnapshot;
 
       // Call MCP service with timeout
       const proposalPromise = this.mcpService.propose('Generate a rule proposal', gameSnapshot);
@@ -298,6 +276,7 @@ export class TurnOrchestrator {
         type: parsedProposal.type,
         ruleNumber: parsedProposal.number,
         ruleText: parsedProposal.text,
+        proof: parsedProposal.proof,
         status: 'pending',
         votes: [],
         timestamp: Date.now()
@@ -350,29 +329,7 @@ export class TurnOrchestrator {
     // Collect votes from all players
     const votingPromises = this.gameModel.players.map(async (player) => {
       try {
-        const gameSnapshot: GameSnapshot = {
-          players: this.gameModel.players.map(p => ({
-            id: p.id,
-            name: p.name,
-            points: p.points,
-            isActive: p.isActive
-          })),
-          rules: this.gameModel.rules.map(r => ({
-            id: r.id,
-            text: r.text,
-            mutable: r.mutable
-          })),
-          proposals: this.gameModel.proposals.map(p => ({
-            id: p.id,
-            proposerId: p.proposerId,
-            type: p.type,
-            ruleNumber: p.ruleNumber,
-            ruleText: p.ruleText,
-            status: p.status
-          })),
-          turn: this.gameModel.turn,
-          phase: this.gameModel.phase
-        };
+        const gameSnapshot = this.gameModel.gameSnapshot;
 
         const voteChoice = await this.withTimeout(
           Promise.resolve(this.mcpService.vote(proposalMarkdown, gameSnapshot)),
@@ -389,8 +346,9 @@ export class TurnOrchestrator {
           );
         }
 
-        // Add vote to proposal
-        proposal.addVote(player.id, voteChoice);
+        // Add vote to proposal  
+        const vote = { voterId: player.id, choice: voteChoice };
+        proposal.addVote(vote as any);
 
       } catch (error) {
         if (error instanceof OrchestrationError) {
@@ -417,7 +375,7 @@ export class TurnOrchestrator {
   }
 
   /**
-   * Resolve a proposal and update player scores
+   * Resolve a proposal and update player scores per Rules 301-303
    */
   private resolveProposal(proposalId: number): void {
     const proposal = this.gameModel.proposals.find(p => p.id === proposalId);
@@ -425,15 +383,21 @@ export class TurnOrchestrator {
       throw new Error(`Proposal ${proposalId} not found`);
     }
 
+    // Auto-resolve judge verdict if none has been rendered yet.
+    // This keeps the game playable in dev/production until a real Judge agent exists.
+    if (proposal.judgeVerdict === 'pending') {
+      proposal.setJudgeVerdict('sound', 'Auto-resolved: proof accepted (no Judge implemented yet)');
+    }
+
     // Resolve proposal based on vote count
     proposal.resolve();
 
-    // Update player scores if proposal passed
+    // Update player scores if proposal passed (legacy scoring)
     if (proposal.isPassed) {
       // Award points to proposer
       const proposer = this.gameModel.players.find(p => p.id === proposal.proposerId);
       if (proposer) {
-        proposer.addPoints(this.gameModel.config.proposerPoints);
+        proposer.awardPoints(this.gameModel.config.proposerPoints);
       }
 
       // Award/deduct points based on votes
@@ -441,21 +405,27 @@ export class TurnOrchestrator {
         const voter = this.gameModel.players.find(p => p.id === vote.voterId);
         if (voter) {
           if (vote.choice === 'FOR') {
-            voter.addPoints(this.gameModel.config.forVoterPoints);
+            voter.awardPoints(this.gameModel.config.forVoterPoints);
           } else if (vote.choice === 'AGAINST') {
-            voter.addPoints(this.gameModel.config.againstVoterPenalty); // This is negative
+            voter.awardPoints(this.gameModel.config.againstVoterPenalty); // This is negative
           }
           // ABSTAIN voters get no points change
         }
       });
     }
 
+    // Update counters per Rules 301-303
+    (this.gameModel as any).updatePlayerCounters(proposalId);
+
+    // Append score entry per Rule 303
+    (this.gameModel as any).appendScoreEntry();
+
     // Check for victory condition after awarding points
     this.gameModel.checkVictoryCondition();
     
     // If game completed due to victory, emit victory event
     if (this.gameModel.phase === 'completed') {
-      const winner = this.gameModel.winner;
+      const winner = (this.gameModel as any).winner;
       if (winner) {
         this.emit('victory', {
           winner,

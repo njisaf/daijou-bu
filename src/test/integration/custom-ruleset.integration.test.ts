@@ -255,15 +255,16 @@ describe('Custom Ruleset Integration', () => {
       expect(game.isRunning).toBe(true);
       
       // Test proposal creation
-      const proposal = game.createProposal({
-        proposerId: 'alice',
-        type: 'Add',
-        ruleNumber: 301,
-        ruleText: 'New test rule added via proposal',
-        status: 'pending',
-        votes: [],
-        timestamp: Date.now()
-      });
+          const proposal = game.createProposal({
+      proposerId: 'alice',
+      type: 'Add',
+      ruleNumber: 301,
+      ruleText: 'New test rule added via proposal',
+      proof: 'This rule addition maintains consistency with existing rules and game objectives.',
+      status: 'pending',
+      votes: [],
+      timestamp: Date.now()
+    });
       
       expect(proposal.id).toBe(301); // First proposal should get ID 301
       expect(game.proposals.length).toBe(1);

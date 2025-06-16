@@ -1,4 +1,5 @@
 import { onSnapshot, getSnapshot, onAction, type SnapshotOut, applySnapshot } from 'mobx-state-tree';
+import { gzip } from 'pako';
 import { GameModel } from '../models/GameModel';
 
 /**
@@ -76,11 +77,15 @@ export class SnapshotLogger {
 
     if (shouldUseFullSnapshot) {
       // Log full snapshot
-      console.log('[SNAPSHOT]', JSON.stringify(currentSnapshot, null, 2));
+      const snapshotJson = JSON.stringify(currentSnapshot, null, 2);
+      const logOutput = this._applyCompression('[SNAPSHOT]', snapshotJson);
+      console.log(logOutput);
     } else {
       // Log diff snapshot
       const diff = this._calculateDiff(this._lastSnapshot, currentSnapshot);
-      console.log('[SNAPSHOT-DIFF]', JSON.stringify(diff, null, 2));
+      const diffJson = JSON.stringify(diff, null, 2);
+      const logOutput = this._applyCompression('[SNAPSHOT-DIFF]', diffJson);
+      console.log(logOutput);
     }
 
     // Add to history with mcpSeed
@@ -340,6 +345,35 @@ export class SnapshotLogger {
     // Keep only last 50 snapshots to prevent memory issues
     if (this._history.length > 50) {
       this._history.shift();
+    }
+  }
+
+  /**
+   * Apply compression to log output based on configuration
+   * @param prefix - Log prefix (e.g., '[SNAPSHOT]')
+   * @param jsonData - JSON string to compress
+   * @returns Formatted log output
+   */
+  private _applyCompression(prefix: string, jsonData: string): string {
+    if (this.gameModel.config.snapshotCompression === 'gzip') {
+      try {
+        // Compress the JSON data
+        const compressed = gzip(jsonData);
+        const originalSize = new Blob([jsonData]).size;
+        const compressedSize = compressed.length;
+        const compressionRatio = Math.round((1 - compressedSize / originalSize) * 100);
+        
+        // Return compressed data as base64 with size info
+        const base64 = btoa(String.fromCharCode.apply(null, Array.from(compressed)));
+        return `${prefix}-GZIP [${originalSize}B→${compressedSize}B, ${compressionRatio}% saved] ${base64}`;
+      } catch (error) {
+        // Fall back to uncompressed if compression fails
+        console.warn('[SNAPSHOT-COMPRESSION-ERROR]', error);
+        return `${prefix} ${jsonData}`;
+      }
+    } else {
+      // No compression - return as-is
+      return `${prefix} ${jsonData}`;
     }
   }
 

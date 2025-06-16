@@ -174,6 +174,57 @@ describe('SnapshotLogger', () => {
     });
   });
 
+  describe('snapshot compression', () => {
+    it('should compress snapshots when gzip compression is enabled', () => {
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      
+      // Create game model with gzip compression enabled
+      const compressedGameModel = GameModel.create({
+        config: { ...DEFAULT_CONFIG, snapshotCompression: 'gzip' },
+        players: [],
+        rules: [],
+        proposals: [],
+        turn: 0,
+        phase: 'setup',
+        history: []
+      });
+      
+      const logger = new SnapshotLogger(compressedGameModel);
+      logger.logSnapshot();
+      
+      // Should log compressed format with size info
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/\[SNAPSHOT\]-GZIP \[\d+B→\d+B, \d+% saved\]/)
+      );
+      
+      consoleLogSpy.mockRestore();
+    });
+
+    it('should not compress snapshots when compression is disabled', () => {
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      
+      // Create game model with no compression
+      const uncompressedGameModel = GameModel.create({
+        config: { ...DEFAULT_CONFIG, snapshotCompression: 'none' },
+        players: [],
+        rules: [],
+        proposals: [],
+        turn: 0,
+        phase: 'setup',
+        history: []
+      });
+      
+      const logger = new SnapshotLogger(uncompressedGameModel);
+      logger.logSnapshot();
+      
+      // Should log normal format (single string parameter)
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('[SNAPSHOT]'));
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('"turn":'));
+      
+      consoleLogSpy.mockRestore();
+    });
+  });
+
   describe('snapshot downloading', () => {
     it('should provide downloadSnapshot utility', () => {
       const snapshotData = logger.downloadSnapshot();

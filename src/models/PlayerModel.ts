@@ -8,8 +8,14 @@ import { getGameConfig } from '../config';
  * Players accumulate points through successful proposals and voting.
  * Victory is achieved when a player reaches the victory target (default 100 points).
  * 
+ * Per Rules 301-303: Players now have performance tracking counters:
+ * - Proposals Passed: Counter of successful proposals (+1 for adopted, -1 for rejected, min 0)
+ * - Accurate Votes: Count of votes matching final proposal outcome 
+ * - Inaccurate Votes: Count of votes not matching final proposal outcome
+ * 
  * @see daijo-bu_architecture.md Section 2 for MST model specifications
  * @see initialRules.md Rule 102 for victory conditions
+ * @see initialRules.json Rules 301-303 for performance tracking
  */
 export const PlayerModel = types
   .model('Player', {
@@ -29,18 +35,67 @@ export const PlayerModel = types
     points: types.optional(types.number, 0),
     
     /** Whether this player is currently taking their turn */
-    isActive: types.optional(types.boolean, false)
+    isActive: types.optional(types.boolean, false),
+    
+    /** Counter of successful proposals per Rule 301 */
+    proposalsPassed: types.optional(types.number, 0),
+    
+    /** Counter of votes matching final outcome per Rule 302 */
+    accurateVotes: types.optional(types.number, 0),
+    
+    /** Counter of votes not matching final outcome per Rule 302 */
+    inaccurateVotes: types.optional(types.number, 0),
+    
+    /** Agent type identifier for LLM integration */
+    agentType: types.optional(types.string, 'mock')
   })
   .actions(self => ({
     /**
      * Awards points to the player
-     * @param amount - Number of points to award (must be positive)
+     * @param amount - Points to award (can be negative for penalties)
      */
     awardPoints(amount: number) {
-      if (amount < 0) {
-        throw new Error('Cannot award negative points');
-      }
       self.points += amount;
+      
+      // Rule 208: If player's score becomes negative, reset to zero
+      if (self.points < 0) {
+        console.log(`📊 [Player] ${self.name}'s score reset to 0 (was ${self.points})`);
+        self.points = 0;
+      }
+    },
+
+    /**
+     * Updates the proposals passed counter per Rule 301
+     * @param delta - Change in counter (+1 for adopted, -1 for rejected)
+     */
+    incrementProposalCounter(delta: number) {
+      const previousCount = self.proposalsPassed;
+      self.proposalsPassed = Math.max(0, self.proposalsPassed + delta);
+      
+      console.log(`📊 [Player] ${self.name} proposals passed: ${previousCount} → ${self.proposalsPassed} (${delta > 0 ? '+' : ''}${delta})`);
+    },
+
+    /**
+     * Records vote accuracy per Rule 302
+     * @param matchesOutcome - true if vote matched final proposal outcome
+     */
+    recordVoteAccuracy(matchesOutcome: boolean) {
+      if (matchesOutcome) {
+        self.accurateVotes += 1;
+        console.log(`📊 [Player] ${self.name} accurate votes: ${self.accurateVotes}`);
+      } else {
+        self.inaccurateVotes += 1;
+        console.log(`📊 [Player] ${self.name} inaccurate votes: ${self.inaccurateVotes}`);
+      }
+    },
+
+    /**
+     * Applies penalty for missing vote per Rule 206
+     */
+    applyMissedVotePenalty() {
+      const penalty = -10;
+      this.awardPoints(penalty);
+      console.log(`⚠️ [Player] ${self.name} penalized ${penalty} points for missed vote`);
     },
 
     /**
@@ -98,6 +153,56 @@ export const PlayerModel = types
      */
     get summary(): string {
       return `${self.icon} ${self.name}: ${self.points} points`;
+    },
+
+    /**
+     * Calculates total vote count (accurate + inaccurate)
+     * @returns Total votes cast by this player
+     */
+    get totalVotes(): number {
+      return self.accurateVotes + self.inaccurateVotes;
+    },
+
+    /**
+     * Calculates vote accuracy percentage
+     * @returns Percentage of accurate votes (0-100)
+     */
+    get voteAccuracyPercentage(): number {
+      const total = this.totalVotes;
+      if (total === 0) return 0;
+      return Math.round((self.accurateVotes / total) * 100);
+    },
+
+    /**
+     * Returns player performance summary for Rule 303 score reporting
+     * @returns Formatted string with key stats
+     */
+    get performanceSummary(): string {
+      return `${self.name} ⭐${self.points}pts (${self.proposalsPassed} passed) | ${self.accurateVotes}/${this.totalVotes} accurate votes`;
+    },
+
+    /**
+     * Returns player score report data for SCORE_REPORT.md generation
+     * @returns Object with all scoring metrics
+     */
+    get scoreReportData(): {
+      name: string;
+      points: number;
+      proposalsPassed: number;
+      accurateVotes: number;
+      inaccurateVotes: number;
+      totalVotes: number;
+      voteAccuracy: number;
+    } {
+      return {
+        name: self.name,
+        points: self.points,
+        proposalsPassed: self.proposalsPassed,
+        accurateVotes: self.accurateVotes,
+        inaccurateVotes: self.inaccurateVotes,
+        totalVotes: this.totalVotes,
+        voteAccuracy: this.voteAccuracyPercentage
+      };
     }
   }));
 
@@ -127,6 +232,7 @@ export function createPlayer(props: {
   name: string;
   icon: string;
   llmEndpoint: string;
+  agentType?: string;
 }): IPlayer {
   // Validate input
   if (!props.id || props.id.trim().length === 0) {
@@ -154,6 +260,10 @@ export function createPlayer(props: {
     name: props.name.trim(),
     icon: props.icon.trim(),
     llmEndpoint: props.llmEndpoint.trim(),
-    points: 0
+    points: 0,
+    proposalsPassed: 0,
+    accurateVotes: 0,
+    inaccurateVotes: 0,
+    agentType: props.agentType || 'mock'
   });
 } 

@@ -276,6 +276,7 @@ describe('GameModel', () => {
         type: 'Add',
         ruleNumber: 301,
         ruleText: 'Test rule',
+        proof: 'This is a test proposal for ID generation.',
         status: 'pending',
         votes: [],
         timestamp: Date.now()
@@ -295,6 +296,7 @@ describe('GameModel', () => {
         type: 'Add',
         ruleNumber: 350,
         ruleText: 'Test rule',
+        proof: 'This proposal tests non-sequential ID handling.',
         status: 'pending',
         votes: [],
         timestamp: Date.now()
@@ -314,6 +316,7 @@ describe('GameModel', () => {
         type: 'Add', 
         ruleNumber: 301,
         ruleText: 'First rule',
+        proof: 'This is the first proposal in the test.',
         status: 'pending',
         votes: [],
         timestamp: Date.now()
@@ -327,6 +330,7 @@ describe('GameModel', () => {
           type: 'Add',
           ruleNumber: 302, 
           ruleText: 'Duplicate ID rule',
+          proof: 'This proposal attempts to use a duplicate ID.',
           status: 'pending',
           votes: [],
           timestamp: Date.now()
@@ -342,6 +346,7 @@ describe('GameModel', () => {
         type: 'Add' as const,
         ruleNumber: 301,
         ruleText: 'Auto-generated ID rule',
+        proof: 'This proposal tests automatic ID generation.',
         status: 'pending' as const,
         votes: [],
         timestamp: Date.now()

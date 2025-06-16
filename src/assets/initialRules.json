@@ -7,7 +7,7 @@
   {
     "id": 102,
     "text": "Initially each player has zero Merit Points. Merit Points are a resource that may be spent only when a rule explicitly authorises it; they can never by themselves determine victory or eliminate a player.",
-    "mutable": true
+    "mutable": false
   },
   {
     "id": 103,
@@ -27,7 +27,7 @@
   {
     "id": 106,
     "text": "Points are *Merit Points* whose only use is to enable or pay for actions explicitly authorised elsewhere (e.g., Rule 205); they can never by themselves determine victory or eliminate a player.\n\nWhen a proposal is adopted, the player who proposed it gains 10 (ten) points, plus 5 (five) additional points for every player who voted FOR the proposal.",
-    "mutable": true
+    "mutable": false
   },
   {
     "id": 107,

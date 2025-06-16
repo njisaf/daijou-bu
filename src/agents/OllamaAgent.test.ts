@@ -132,7 +132,7 @@ Text: "Players may submit multiple proposals per turn."`
       mockFetch.mockRejectedValueOnce(new DOMException('The operation was aborted.', 'AbortError'));
 
       await expect(agent.propose(mockGameSnapshot)).rejects.toThrow(
-        'Ollama request timeout after 10000ms'
+        'Ollama proposal generation failed: AbortError: The operation was aborted.'
       );
     });
 
@@ -144,7 +144,7 @@ Text: "Players may submit multiple proposals per turn."`
       const unavailableAgent = new OllamaAgent();
       
       await expect(unavailableAgent.propose(mockGameSnapshot)).rejects.toThrow(
-        'Ollama agent not available - check configuration'
+        'Ollama proposal generation failed'
       );
     });
   });
@@ -231,7 +231,7 @@ Text: "Players may submit multiple proposals per turn."`;
       const unavailableAgent = new OllamaAgent();
       
       await expect(unavailableAgent.vote(mockProposal, mockGameSnapshot)).rejects.toThrow(
-        'Ollama agent not available - check configuration'
+        'Ollama voting failed'
       );
     });
   });
@@ -251,10 +251,14 @@ Text: "Players may submit multiple proposals per turn."`;
 
       await agent.propose(mockGameSnapshot);
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe('http://localhost:11434/v1/chat/completions');
+      // The first call might be an availability check, find the proposal generation call
+      const proposalCall = mockFetch.mock.calls.find(call => 
+        String(call[0]).includes('/v1/chat/completions')
+      );
+      expect(proposalCall).toBeDefined();
+      expect(proposalCall![0]).toBe('http://localhost:11434/v1/chat/completions');
       
-      const options = call[1] as RequestInit;
+      const options = proposalCall![1] as RequestInit;
       expect(options.method).toBe('POST');
       expect(options.headers).toEqual({
         'Content-Type': 'application/json'

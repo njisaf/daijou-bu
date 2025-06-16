@@ -156,7 +156,7 @@ describe('TurnOrchestrator', () => {
         history: []
       });
       
-      const emptyOrchestrator = new TurnOrchestrator(emptyGameModel, mockMcpService);
+      const emptyOrchestrator = new TurnOrchestrator(emptyGameModel, mockMcpService, mockLogger);
       emptyOrchestrator.on('error', errorHandler);
 
       try {
@@ -218,7 +218,7 @@ describe('TurnOrchestrator', () => {
       });
       
       delayGameModel.setupGame();
-      const delayOrchestrator = new TurnOrchestrator(delayGameModel, mockMcpService);
+      const delayOrchestrator = new TurnOrchestrator(delayGameModel, mockMcpService, mockLogger);
       
       const startTime = Date.now();
       const promise = delayOrchestrator.start();

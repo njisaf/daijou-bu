@@ -14,7 +14,7 @@ import styles from './ConfigEditor.module.css';
  * Provides a comprehensive interface for editing game configuration:
  * - Real-time validation with inline error display
  * - Read-only preview of computed defaults
- * - Import/Export JSON functionality
+ * - Import/Export JSON functionality (Markdown not supported - use RulesetEditor for Markdown)
  * - Accessibility-compliant form controls
  * - Hot-reload convenience via query parameters
  * 
@@ -64,6 +64,9 @@ const ConfigEditor: React.FC = observer(() => {
           break;
         case 'debugSnapshots':
           config.setDebugSnapshots(value);
+          break;
+        case 'snapshotCompression':
+          config.setSnapshotCompression(value);
           break;
         case 'agentType':
           config.setAgentType(value);
@@ -414,6 +417,22 @@ const ConfigEditor: React.FC = observer(() => {
               </label>
               <div id="debugSnapshots-help" className={styles.helpText}>
                 Override snapshot mode to always use full snapshots. Default: false
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="snapshotCompression">Snapshot Compression</label>
+              <select
+                id="snapshotCompression"
+                value={config.snapshotCompression}
+                onChange={(e) => handleFieldUpdate('snapshotCompression', e.target.value as 'none' | 'gzip')}
+                aria-describedby="snapshotCompression-help"
+              >
+                <option value="none">No Compression</option>
+                <option value="gzip">Gzip Compression</option>
+              </select>
+              <div id="snapshotCompression-help" className={styles.helpText}>
+                Compress snapshot logs. Gzip reduces console size by ~70%. Default: none
               </div>
             </div>
           </section>

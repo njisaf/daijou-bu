@@ -56,6 +56,9 @@ export const GameConfigModel = types
     /** Whether to enable snapshot logging to console */
     enableSnapshotLogging: types.optional(types.boolean, true),
     
+    /** Snapshot compression mode: 'none' for no compression, 'gzip' for gzip compression */
+    snapshotCompression: types.optional(types.enumeration(['none', 'gzip']), 'none'),
+    
     /** Agent configuration */
     agent: types.optional(AgentConfigModel, () => ({
       type: 'mock',
@@ -141,6 +144,7 @@ export const GameConfigModel = types
         snapshotMode: self.snapshotMode,
         debugSnapshots: self.debugSnapshots,
         enableSnapshotLogging: self.enableSnapshotLogging,
+        snapshotCompression: self.snapshotCompression,
         agent: {
           type: self.agent.type,
           concurrency: self.agent.concurrency
@@ -213,6 +217,14 @@ export const GameConfigModel = types
     },
 
     /**
+     * Update snapshot compression mode
+     * @param compression - Compression mode ('none' | 'gzip')
+     */
+    setSnapshotCompression(compression: 'none' | 'gzip') {
+      self.snapshotCompression = compression;
+    },
+
+    /**
      * Update agent type
      * @param type - New agent type
      */
@@ -264,6 +276,7 @@ export const GameConfigModel = types
       self.snapshotMode = 'full';
       self.debugSnapshots = false;
       self.enableSnapshotLogging = true;
+      self.snapshotCompression = 'none';
       self.agent.type = 'mock';
       self.agent.concurrency = 4;
       self.promptP = '';
@@ -286,6 +299,7 @@ export const GameConfigModel = types
       snapshotMode: 'full' | 'diff';
       debugSnapshots: boolean;
       enableSnapshotLogging: boolean;
+      snapshotCompression: 'none' | 'gzip';
       promptP: string;
       maxPlayers: number;
       agentTimeoutMs: number;
@@ -324,6 +338,9 @@ export const GameConfigModel = types
       }
       if (updates.enableSnapshotLogging !== undefined) {
         self.enableSnapshotLogging = updates.enableSnapshotLogging;
+      }
+      if (updates.snapshotCompression !== undefined) {
+        this.setSnapshotCompression(updates.snapshotCompression);
       }
       if (updates.promptP !== undefined) {
         this.setPromptP(updates.promptP);
@@ -368,6 +385,7 @@ export function createGameConfig(overrides: Partial<GameConfigSnapshotIn> = {}):
     promptP: '',
     maxPlayers: 6,
     agentTimeoutMs: 15000,
+    snapshotCompression: 'none',
     ...overrides
   });
 

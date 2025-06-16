@@ -10,6 +10,7 @@ describe('ProposalModel', () => {
       type: 'Add',
       ruleNumber: 301,
       ruleText: 'Players may submit proposals in haiku format.',
+      proof: 'This proposal adds a new rule without conflicts.',
       timestamp: Date.now()
     });
 
@@ -32,14 +33,15 @@ describe('ProposalModel', () => {
       type: 'Amend',
       ruleNumber: 201,
       ruleText: 'Updated rule text',
+      proof: 'This proposal amends an existing mutable rule.',
       timestamp: Date.now()
     });
 
     const vote1 = createVote({ voterId: 'alice', choice: 'FOR' });
     const vote2 = createVote({ voterId: 'charlie', choice: 'AGAINST' });
     
-    proposal.addVote('alice', 'FOR');
-    proposal.addVote('charlie', 'AGAINST');
+    proposal.addVote(vote1);
+    proposal.addVote(vote2);
 
     expect(proposal.votes).toHaveLength(2);
     expect(proposal.getVoteFor('alice')?.choice).toBe('FOR');
@@ -53,12 +55,13 @@ describe('ProposalModel', () => {
       type: 'Repeal',
       ruleNumber: 208,
       ruleText: 'Rule 208 is hereby repealed.',
+      proof: 'This proposal repeals a mutable rule.',
       timestamp: Date.now()
     });
 
-    proposal.addVote('alice', 'FOR');
+    proposal.addVote(createVote({ voterId: 'alice', choice: 'FOR' }));
     
-    expect(() => proposal.addVote('alice', 'AGAINST')).toThrow();
+    expect(() => proposal.addVote(createVote({ voterId: 'alice', choice: 'AGAINST' }))).toThrow();
   });
 
   it('should allow changing votes before resolution', () => {
@@ -68,10 +71,11 @@ describe('ProposalModel', () => {
       type: 'Transmute',
       ruleNumber: 105,
       ruleText: 'Rule 105 is hereby transmuted.',
+      proof: 'This proposal transmutes rule mutability.',
       timestamp: Date.now()
     });
 
-    proposal.addVote('alice', 'FOR');
+    proposal.addVote(createVote({ voterId: 'alice', choice: 'FOR' }));
     expect(proposal.getVoteFor('alice')?.choice).toBe('FOR');
 
     proposal.changeVote('alice', 'AGAINST');
@@ -85,13 +89,14 @@ describe('ProposalModel', () => {
       type: 'Add',
       ruleNumber: 302,
       ruleText: 'New rule text',
+      proof: 'This proposal adds a new rule safely.',
       timestamp: Date.now()
     });
 
-    proposal.addVote('alice', 'FOR');
-    proposal.addVote('bob', 'FOR');
-    proposal.addVote('charlie', 'AGAINST');
-    proposal.addVote('diana', 'ABSTAIN');
+    proposal.addVote(createVote({ voterId: 'alice', choice: 'FOR' }));
+    proposal.addVote(createVote({ voterId: 'bob', choice: 'FOR' }));
+    proposal.addVote(createVote({ voterId: 'charlie', choice: 'AGAINST' }));
+    proposal.addVote(createVote({ voterId: 'diana', choice: 'ABSTAIN' }));
 
     expect(proposal.forVotes).toBe(2);
     expect(proposal.againstVotes).toBe(1);
@@ -106,15 +111,16 @@ describe('ProposalModel', () => {
       type: 'Add',
       ruleNumber: 303,
       ruleText: 'Another new rule',
+      proof: 'This proposal adds another new rule.',
       timestamp: Date.now()
     });
 
-    proposal.addVote('alice', 'FOR');
-    proposal.addVote('bob', 'FOR');
-    proposal.addVote('charlie', 'FOR');
-    proposal.addVote('diana', 'AGAINST');
+    proposal.addVote(createVote({ voterId: 'alice', choice: 'FOR' }));
+    proposal.addVote(createVote({ voterId: 'bob', choice: 'FOR' }));
+    proposal.addVote(createVote({ voterId: 'charlie', choice: 'FOR' }));
+    proposal.addVote(createVote({ voterId: 'diana', choice: 'AGAINST' }));
 
-    proposal.resolve();
+    proposal.resolveForTesting();
 
     expect(proposal.status).toBe('passed');
     expect(proposal.isPassed).toBe(true);
@@ -127,15 +133,16 @@ describe('ProposalModel', () => {
       type: 'Repeal',
       ruleNumber: 209,
       ruleText: 'Repeal rule 209',
+      proof: 'This proposal repeals an existing mutable rule.',
       timestamp: Date.now()
     });
 
-    proposal.addVote('alice', 'AGAINST');
-    proposal.addVote('bob', 'AGAINST');
-    proposal.addVote('charlie', 'FOR');
-    proposal.addVote('diana', 'ABSTAIN');
+    proposal.addVote(createVote({ voterId: 'alice', choice: 'AGAINST' }));
+    proposal.addVote(createVote({ voterId: 'bob', choice: 'AGAINST' }));
+    proposal.addVote(createVote({ voterId: 'charlie', choice: 'FOR' }));
+    proposal.addVote(createVote({ voterId: 'diana', choice: 'ABSTAIN' }));
 
-    proposal.resolve();
+    proposal.resolveForTesting();
 
     expect(proposal.status).toBe('failed');
     expect(proposal.isFailed).toBe(true);
@@ -148,15 +155,16 @@ describe('ProposalModel', () => {
       type: 'Add',
       ruleNumber: 304,
       ruleText: 'Tied proposal',
+      proof: 'This proposal tests tie-breaking logic.',
       timestamp: Date.now()
     });
 
-    proposal.addVote('alice', 'FOR');
-    proposal.addVote('bob', 'FOR');
-    proposal.addVote('charlie', 'AGAINST');
-    proposal.addVote('diana', 'AGAINST');
+    proposal.addVote(createVote({ voterId: 'alice', choice: 'FOR' }));
+    proposal.addVote(createVote({ voterId: 'bob', choice: 'FOR' }));
+    proposal.addVote(createVote({ voterId: 'charlie', choice: 'AGAINST' }));
+    proposal.addVote(createVote({ voterId: 'diana', choice: 'AGAINST' }));
 
-    proposal.resolve();
+    proposal.resolveForTesting();
 
     expect(proposal.status).toBe('failed');
     expect(proposal.isFailed).toBe(true);
@@ -169,13 +177,14 @@ describe('ProposalModel', () => {
       type: 'Add',
       ruleNumber: 305,
       ruleText: 'Resolved proposal',
+      proof: 'This proposal tests post-resolution state.',
       timestamp: Date.now()
     });
 
-    proposal.addVote('alice', 'FOR');
-    proposal.resolve();
+    proposal.addVote(createVote({ voterId: 'alice', choice: 'FOR' }));
+    proposal.resolveForTesting();
 
-    expect(() => proposal.addVote('bob', 'FOR')).toThrow();
+    expect(() => proposal.addVote(createVote({ voterId: 'bob', choice: 'FOR' }))).toThrow();
     expect(() => proposal.changeVote('alice', 'AGAINST')).toThrow();
   });
 
@@ -186,6 +195,7 @@ describe('ProposalModel', () => {
       type: 'Amend',
       ruleNumber: 202,
       ruleText: 'Updated voting options rule',
+      proof: 'This proposal amends voting rules.',
       timestamp: Date.now()
     });
 
@@ -203,6 +213,7 @@ describe('ProposalModel', () => {
       type: 'Add',
       ruleNumber: 301,
       ruleText: 'Valid text',
+      proof: 'This is a valid proof section.',
       timestamp: Date.now()
     })).toThrow();
 
@@ -212,6 +223,7 @@ describe('ProposalModel', () => {
       type: 'Add',
       ruleNumber: 301,
       ruleText: 'Valid text',
+      proof: 'This is a valid proof section.',
       timestamp: Date.now()
     })).toThrow();
 
@@ -221,6 +233,7 @@ describe('ProposalModel', () => {
       type: 'Add',
       ruleNumber: 0,
       ruleText: 'Valid text',
+      proof: 'This is a valid proof section.',
       timestamp: Date.now()
     })).toThrow();
 
@@ -230,6 +243,7 @@ describe('ProposalModel', () => {
       type: 'Add',
       ruleNumber: 301,
       ruleText: '',
+      proof: 'This is a valid proof section.',
       timestamp: Date.now()
     })).toThrow();
   });
@@ -240,18 +254,43 @@ describe('ProposalModel', () => {
       proposerId: 'json-test',
       type: 'Add',
       ruleNumber: 306,
-      ruleText: 'JSON test rule',
+      ruleText: 'Test proposal',
+      proof: 'This is a test proof section.',
       timestamp: 1234567890
     });
 
-    proposal.addVote('alice', 'FOR');
+    proposal.addVote(createVote({ voterId: 'alice', choice: 'FOR' }));
 
     const json = JSON.parse(JSON.stringify(proposal));
     expect(json.id).toBe(11);
     expect(json.proposerId).toBe('json-test');
     expect(json.type).toBe('Add');
     expect(json.ruleNumber).toBe(306);
-    expect(json.ruleText).toBe('JSON test rule');
+    expect(json.ruleText).toBe('Test proposal');
+    expect(json.status).toBe('pending');
+    expect(json.timestamp).toBe(1234567890);
+    expect(json.votes).toHaveLength(1);
+  });
+
+  it('should serialize to JSON correctly with proof', () => {
+    const proposal = createProposal({
+      id: 12,
+      proposerId: 'json-test',
+      type: 'Add',
+      ruleNumber: 307,
+      ruleText: 'JSON test proposal',
+      proof: 'This proposal tests JSON serialization.',
+      timestamp: 1234567890
+    });
+
+    proposal.addVote(createVote({ voterId: 'alice', choice: 'FOR' }));
+
+    const json = JSON.parse(JSON.stringify(proposal));
+    expect(json.id).toBe(12);
+    expect(json.proposerId).toBe('json-test');
+    expect(json.type).toBe('Add');
+    expect(json.ruleNumber).toBe(307);
+    expect(json.ruleText).toBe('JSON test proposal');
     expect(json.status).toBe('pending');
     expect(json.timestamp).toBe(1234567890);
     expect(json.votes).toHaveLength(1);

@@ -182,11 +182,15 @@ export class MockMCPService implements MCPService {
       ruleText = this.rng.choice(this.proposalTemplates);
     }
 
+    // Generate a realistic proof section
+    const proofText = this.generateProofSection(proposalType, ruleNumber, ruleText, gameSnapshot);
+
     // Format as markdown without ID
     const result = `### Proposal
 Type: ${proposalType}
 Number: ${ruleNumber}
-Text: "${ruleText}"`;
+Text: "${ruleText}"
+Proof: "${proofText}"`;
 
     console.log(`✅ [MockMCP] Mock proposal generated (Type: ${proposalType}, Number: ${ruleNumber})`);
     return result;
@@ -265,5 +269,44 @@ Text: "${ruleText}"`;
   reseed(newSeed: number): void {
     this.currentSeed = newSeed;
     this.rng = new SeededRandom(newSeed);
+  }
+
+  /**
+   * Generate a proof section for the proposal
+   * This creates plausible legal reasoning for why the proposal is valid
+   */
+  private generateProofSection(proposalType: string, ruleNumber: number, ruleText: string, gameSnapshot: GameSnapshot): string {
+    const proofTemplates = [
+      'This proposal maintains consistency with existing rules and supports the game\'s core objectives.',
+      'The proposed change does not conflict with any immutable rules and follows established precedent.',
+      'This rule addition enhances gameplay without disrupting the current rule structure.',
+      'The proposal aligns with the spirit of the game and provides clear benefit to players.',
+      'This change addresses a gap in the current ruleset while preserving game balance.',
+      'The proposed rule is consistent with similar provisions in Rules 101-299.',
+      'This amendment clarifies existing procedures without changing fundamental mechanics.',
+      'The rule change promotes fair play and maintains the integrity of the game.',
+      'This proposal follows the standard format and meets all procedural requirements.',
+      'The suggested modification improves game flow while respecting established principles.'
+    ];
+
+    // Add specific reasoning based on proposal type
+    let specificReasoning = '';
+    switch (proposalType) {
+      case 'Add':
+        specificReasoning = `This new rule (${ruleNumber}) does not conflict with any existing rules numbered ${Math.min(...gameSnapshot.rules.map(r => r.id))} through ${Math.max(...gameSnapshot.rules.map(r => r.id))}.`;
+        break;
+      case 'Amend':
+        specificReasoning = `This amendment to Rule ${ruleNumber} preserves the rule's original intent while addressing identified ambiguities.`;
+        break;
+      case 'Repeal':
+        specificReasoning = `Rule ${ruleNumber} has served its purpose and its removal will not affect the operation of other rules.`;
+        break;
+      case 'Transmute':
+        specificReasoning = `The mutability change for Rule ${ruleNumber} is appropriate given the current game state and rule interdependencies.`;
+        break;
+    }
+
+    const baseProof = this.rng.choice(proofTemplates);
+    return `${baseProof} ${specificReasoning}`;
   }
 } 

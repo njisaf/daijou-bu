@@ -13,7 +13,7 @@ import { parseProposalMarkdownWithoutId } from '../../schemas/proposal';
  * 4. No duplicate IDs can occur even across multiple turns
  */
 describe('Duplicate Proposal ID Fix - Integration Test', () => {
-  let gameModel: typeof GameModel.Type;
+  let gameModel: InstanceType<typeof GameModel>;
 
   beforeEach(() => {
     gameModel = GameModel.create({
@@ -62,6 +62,7 @@ describe('Duplicate Proposal ID Fix - Integration Test', () => {
         type: 'Add',
         ruleNumber: 300 + i,
         ruleText: `Test rule ${i}`,
+        proof: `This rule addition does not conflict with existing rules and maintains game consistency.`,
         status: 'pending',
         votes: [],
         timestamp: Date.now()
@@ -84,14 +85,18 @@ describe('Duplicate Proposal ID Fix - Integration Test', () => {
     const llmProposalMarkdown = `### Proposal
 Type: Add
 Number: 301
-Text: "Players may submit proposals using natural language."`;
+Text: "Players may submit proposals using natural language."
+Proof: "This rule supports natural interaction and maintains consistency with existing gameplay rules."`;
 
     // Parse the proposal (no ID needed)
     const parsedProposal = parseProposalMarkdownWithoutId(llmProposalMarkdown);
     expect(parsedProposal).toEqual({
       type: 'Add',
       number: 301,
-      text: 'Players may submit proposals using natural language.'
+      text: 'Players may submit proposals using natural language.',
+      proof: 'This rule supports natural interaction and maintains consistency with existing gameplay rules.',
+      judgeVerdict: 'pending',
+      judgeJustification: undefined
     });
 
     // Create proposal with auto-generated ID
@@ -100,6 +105,7 @@ Text: "Players may submit proposals using natural language."`;
       type: parsedProposal.type,
       ruleNumber: parsedProposal.number,
       ruleText: parsedProposal.text,
+      proof: parsedProposal.proof,
       status: 'pending',
       votes: [],
       timestamp: Date.now()
@@ -109,6 +115,7 @@ Text: "Players may submit proposals using natural language."`;
     expect(proposal.type).toBe('Add');
     expect(proposal.ruleNumber).toBe(301);
     expect(proposal.ruleText).toBe('Players may submit proposals using natural language.');
+    expect(proposal.proof).toBe('This rule supports natural interaction and maintains consistency with existing gameplay rules.');
   });
 
   it('should prevent duplicate IDs when attempting manual creation', () => {
@@ -118,6 +125,7 @@ Text: "Players may submit proposals using natural language."`;
       type: 'Add',
       ruleNumber: 301,
       ruleText: 'First rule',
+      proof: 'This rule addition maintains game consistency and does not conflict with existing rules.',
       status: 'pending',
       votes: [],
       timestamp: Date.now()
@@ -133,6 +141,7 @@ Text: "Players may submit proposals using natural language."`;
         type: 'Add',
         ruleNumber: 302,
         ruleText: 'Second rule',
+        proof: 'This rule addition maintains game consistency and does not conflict with existing rules.',
         status: 'pending',
         votes: [],
         timestamp: Date.now()
@@ -150,6 +159,7 @@ Text: "Players may submit proposals using natural language."`;
       type: 'Add',
       ruleNumber: 301,
       ruleText: 'Auto-generated ID proposal',
+      proof: 'This rule addition maintains game consistency and does not conflict with existing rules.',
       status: 'pending',
       votes: [],
       timestamp: Date.now()
@@ -164,6 +174,7 @@ Text: "Players may submit proposals using natural language."`;
       type: 'Add',
       ruleNumber: 302,
       ruleText: 'Manual ID proposal',
+      proof: 'This rule addition maintains game consistency and does not conflict with existing rules.',
       status: 'pending',
       votes: [],
       timestamp: Date.now()
@@ -175,6 +186,7 @@ Text: "Players may submit proposals using natural language."`;
       type: 'Add',
       ruleNumber: 303,
       ruleText: 'Next auto proposal',
+      proof: 'This rule addition maintains game consistency and does not conflict with existing rules.',
       status: 'pending',
       votes: [],
       timestamp: Date.now()
@@ -194,17 +206,20 @@ Text: "Players may submit proposals using natural language."`;
     const unicodeProposalMarkdown = `### Proposal
 Type: Add
 Number: 301
-Text: "Players may vote using emoji reactions for faster gameplay."`;
+Text: "Players may vote using emoji reactions for faster gameplay."
+Proof: "This proposal enhances user experience while maintaining all existing voting safeguards and requirements."`;
 
     // This should parse successfully
     const parsedProposal = parseProposalMarkdownWithoutId(unicodeProposalMarkdown);
     expect(parsedProposal.text).toBe('Players may vote using emoji reactions for faster gameplay.');
+    expect(parsedProposal.proof).toBe('This proposal enhances user experience while maintaining all existing voting safeguards and requirements.');
 
     const proposal = gameModel.createProposal({
       proposerId: 'player1',
       type: parsedProposal.type,
       ruleNumber: parsedProposal.number,
       ruleText: parsedProposal.text,
+      proof: parsedProposal.proof,
       status: 'pending',
       votes: [],
       timestamp: Date.now()
@@ -212,5 +227,6 @@ Text: "Players may vote using emoji reactions for faster gameplay."`;
 
     expect(proposal.id).toBe(301);
     expect(proposal.ruleText).toBe('Players may vote using emoji reactions for faster gameplay.');
+    expect(proposal.proof).toBe('This proposal enhances user experience while maintaining all existing voting safeguards and requirements.');
   });
 }); 

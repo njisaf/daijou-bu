@@ -9,7 +9,13 @@ import { z } from 'zod';
  * - Repeal: Removes an existing rule
  * - Transmute: Changes a rule's mutability status
  * 
+ * Per Rule 121: Every Proposal must include a Proof Section showing:
+ * (a) its adoption does not render the ruleset inconsistent, and 
+ * (b) maintains or improves the likelihood that an LLM following the 
+ *     Development Rulebook can satisfy Prompt P
+ * 
  * @see devbot_kickoff_prompt.md Section 2.1 Proposal Markdown Grammar
+ * @see initialRules.json Rule 121 (Proof Requirement)
  */
 export const ProposalSchema = z.object({
   /** Unique identifier for the proposal */
@@ -22,48 +28,54 @@ export const ProposalSchema = z.object({
   number: z.number().int().positive(),
   
   /** Full text of the rule */
-  text: z.string().min(1, 'Rule text cannot be empty')
+  text: z.string().min(1, 'Rule text cannot be empty'),
+
+  /** Proof section text (required per Rule 121) */
+  proof: z.string().min(1, 'Proof section cannot be empty per Rule 121'),
+
+  /** Judge verdict on proof soundness (optional - set during judging phase) */
+  judgeVerdict: z.enum(['sound', 'unsound', 'pending']).optional().default('pending'),
+
+  /** Judge's written justification (optional - set during judging phase) */
+  judgeJustification: z.string().optional()
 });
 
+/**
+ * Proposal type derived from schema
+ */
 export type Proposal = z.infer<typeof ProposalSchema>;
 
 /**
- * Schema for proposal data without ID (for creation)
- * The ID will be generated automatically by the GameModel
+ * Schema for proposals without ID (used during creation)
  */
-export const ProposalWithoutIdSchema = z.object({
-  /** Type of rule change being proposed */
-  type: z.enum(['Add', 'Amend', 'Repeal', 'Transmute']),
-  
-  /** Rule number being targeted or created */
-  number: z.number().int().positive(),
-  
-  /** Full text of the rule */
-  text: z.string().min(1, 'Rule text cannot be empty')
-});
+export const ProposalWithoutIdSchema = ProposalSchema.omit({ id: true });
 
+/**
+ * Proposal type without ID (used during creation)
+ */
 export type ProposalWithoutId = z.infer<typeof ProposalWithoutIdSchema>;
 
 /**
  * Parses proposal markdown into a structured Proposal object
  * 
- * Expected format:
+ * Expected format (Rule 121 compliant):
  * ### Proposal <id>
  * Type: Add | Amend | Repeal | Transmute
  * Number: <int>
  * Text: "<rule text>"
+ * Proof: "<proof section demonstrating consistency and Prompt P alignment>"
  * 
  * Note: Supports both ASCII quotes (") and Unicode smart quotes ("") from LLMs
  * 
  * @param markdown - The proposal markdown string
  * @returns Parsed and validated Proposal object
- * @throws Error if markdown is invalid or doesn't match expected format
+ * @throws Error if markdown is invalid, doesn't match expected format, or lacks proof section
  */
 export function parseProposalMarkdown(markdown: string): Proposal {
   const lines = markdown.trim().split('\n');
   
-  if (lines.length < 4) {
-    throw new Error('Invalid proposal format: must have at least 4 lines');
+  if (lines.length < 5) {
+    throw new Error('Invalid proposal format: must have at least 5 lines (header, type, number, text, proof)');
   }
 
   // Parse proposal ID from header line
@@ -96,119 +108,20 @@ export function parseProposalMarkdown(markdown: string): Proposal {
   }
 
   // Parse text field
-  const textMatch = lines[3].match(/^Text: "(.+)"$/);
-  if (!textMatch) {
-    // Enhanced debugging for text parsing failure
-    console.error('❌ [ProposalParser] Text field parsing failed');
-    console.error('❌ [ProposalParser] Line 3 content:', JSON.stringify(lines[3]));
-    console.error('❌ [ProposalParser] Line 3 length:', lines[3].length);
-    console.error('❌ [ProposalParser] Line 3 char codes:', Array.from(lines[3]).map(c => c.charCodeAt(0)));
-    
-    // Try with Unicode smart quotes (common with LLMs like Ollama)
-    // U+201C = " (left double quotation mark), U+201D = " (right double quotation mark)
-    const smartQuoteMatch = lines[3].match(/^Text: \u201C(.+)\u201D$/);
-    if (smartQuoteMatch) {
-      console.log('✅ [ProposalParser] Unicode smart quotes detected and handled');
-      const text = smartQuoteMatch[1].trim();
-      
-      // Create and validate the proposal object
-      const proposal = {
-        id,
-        type,
-        number,
-        text
-      };
+  const { text, nextLineIndex } = parseQuotedField(lines, 3, 'Text');
 
-      // Use Zod to validate the parsed object
-      const result = ProposalSchema.safeParse(proposal);
-      if (!result.success) {
-        throw new Error(`Invalid proposal data: ${result.error.message}`);
-      }
-
-      return result.data;
-    }
-    
-    // Try a more flexible regex that handles potential multi-line content
-    const flexibleTextMatch = lines[3].match(/^Text: "(.+)"$/s);
-    if (flexibleTextMatch) {
-      console.log('✅ [ProposalParser] Flexible regex matched!');
-      const text = flexibleTextMatch[1].trim();
-      
-      // Create and validate the proposal object
-      const proposal = {
-        id,
-        type,
-        number,
-        text
-      };
-
-      // Use Zod to validate the parsed object
-      const result = ProposalSchema.safeParse(proposal);
-      if (!result.success) {
-        throw new Error(`Invalid proposal data: ${result.error.message}`);
-      }
-
-      return result.data;
-    }
-    
-    // Try to handle case where text might span multiple lines after "Text: ""
-    if (lines[3].startsWith('Text: "') || lines[3].startsWith('Text: "')) {
-      console.log('✅ [ProposalParser] Attempting multi-line text parsing...');
-      let textContent = '';
-      
-      // Handle both ASCII and Unicode quotes
-      if (lines[3].startsWith('Text: "')) {
-        textContent = lines[3].substring(7); // Remove 'Text: "'
-      } else if (lines[3].startsWith('Text: "')) {
-        textContent = lines[3].substring(7); // Remove 'Text: "'
-      }
-      
-      let lineIndex = 3;
-      
-      // Continue reading lines until we find the closing quote (ASCII or Unicode)
-      while (lineIndex < lines.length && !textContent.endsWith('"') && !textContent.endsWith('"')) {
-        lineIndex++;
-        if (lineIndex < lines.length) {
-          textContent += '\n' + lines[lineIndex];
-        }
-      }
-      
-      // Remove trailing quote (ASCII or Unicode)
-      if (textContent.endsWith('"') || textContent.endsWith('"')) {
-        textContent = textContent.slice(0, -1);
-        console.log('✅ [ProposalParser] Multi-line text extracted:', textContent);
-        
-        const text = textContent.trim();
-        
-        // Create and validate the proposal object
-        const proposal = {
-          id,
-          type,
-          number,
-          text
-        };
-
-        // Use Zod to validate the parsed object
-        const result = ProposalSchema.safeParse(proposal);
-        if (!result.success) {
-          throw new Error(`Invalid proposal data: ${result.error.message}`);
-        }
-
-        return result.data;
-      }
-    }
-    
-    throw new Error('Missing or invalid Text field: must be "Text: "<text>"" (supports both ASCII and Unicode quotes)');
-  }
-  
-  const text = textMatch[1].trim();
+  // Parse proof field (required per Rule 121)
+  const { text: proof } = parseQuotedField(lines, nextLineIndex, 'Proof');
 
   // Create and validate the proposal object
   const proposal = {
     id,
     type,
     number,
-    text
+    text,
+    proof,
+    judgeVerdict: 'pending' as const,
+    judgeJustification: undefined
   };
 
   // Use Zod to validate the parsed object
@@ -223,23 +136,24 @@ export function parseProposalMarkdown(markdown: string): Proposal {
 /**
  * Parses proposal markdown into a ProposalWithoutId object (no ID required)
  * 
- * Expected format:
+ * Expected format (Rule 121 compliant):
  * ### Proposal
  * Type: Add | Amend | Repeal | Transmute
  * Number: <int>
  * Text: "<rule text>"
+ * Proof: "<proof section demonstrating consistency and Prompt P alignment>"
  * 
  * Note: Supports both ASCII quotes (") and Unicode smart quotes ("") from LLMs
  * 
  * @param markdown - The proposal markdown string
  * @returns Parsed and validated ProposalWithoutId object
- * @throws Error if markdown is invalid or doesn't match expected format
+ * @throws Error if markdown is invalid, doesn't match expected format, or lacks proof section
  */
 export function parseProposalMarkdownWithoutId(markdown: string): ProposalWithoutId {
   const lines = markdown.trim().split('\n');
   
-  if (lines.length < 3) {
-    throw new Error('Invalid proposal format: must have at least 3 lines');
+  if (lines.length < 4) {
+    throw new Error('Invalid proposal format: must have at least 4 lines (header, type, number, text, proof)');
   }
 
   // Parse header line (no ID required)
@@ -267,48 +181,19 @@ export function parseProposalMarkdownWithoutId(markdown: string): ProposalWithou
   }
 
   // Parse text field
-  const textMatch = lines[3] ? lines[3].match(/^Text: "(.+)"$/) : null;
-  if (!textMatch) {
-    // Enhanced debugging for text parsing failure
-    console.error('❌ [ProposalParser] Text field parsing failed');
-    if (lines[3]) {
-      console.error('❌ [ProposalParser] Line 3 content:', JSON.stringify(lines[3]));
-      console.error('❌ [ProposalParser] Line 3 length:', lines[3].length);
-      console.error('❌ [ProposalParser] Line 3 char codes:', Array.from(lines[3]).map(c => c.charCodeAt(0)));
-    }
-    
-    // Try with Unicode smart quotes (common with LLMs like Ollama)
-    const smartQuoteMatch = lines[3] ? lines[3].match(/^Text: \u201C(.+)\u201D$/) : null;
-    if (smartQuoteMatch) {
-      console.log('✅ [ProposalParser] Unicode smart quotes detected and handled');
-      const text = smartQuoteMatch[1].trim();
-      
-      // Create and validate the proposal object
-      const proposal = {
-        type,
-        number,
-        text
-      };
+  const { text, nextLineIndex } = parseQuotedField(lines, 3, 'Text');
 
-      // Use Zod to validate the parsed object
-      const result = ProposalWithoutIdSchema.safeParse(proposal);
-      if (!result.success) {
-        throw new Error(`Invalid proposal data: ${result.error.message}`);
-      }
-
-      return result.data;
-    }
-    
-    throw new Error('Missing or invalid Text field: must be "Text: "<text>"" (supports both ASCII and Unicode quotes)');
-  }
-  
-  const text = textMatch[1].trim();
+  // Parse proof field (required per Rule 121)
+  const { text: proof } = parseQuotedField(lines, nextLineIndex, 'Proof');
 
   // Create and validate the proposal object
   const proposal = {
     type,
     number,
-    text
+    text,
+    proof,
+    judgeVerdict: 'pending' as const,
+    judgeJustification: undefined
   };
 
   // Use Zod to validate the parsed object
@@ -318,4 +203,77 @@ export function parseProposalMarkdownWithoutId(markdown: string): ProposalWithou
   }
 
   return result.data;
+}
+
+/**
+ * Helper function to parse quoted fields with multi-line support
+ * 
+ * Handles both ASCII quotes (") and Unicode smart quotes ("") from LLMs.
+ * Supports multi-line content within quotes.
+ * 
+ * @param lines - Array of markdown lines
+ * @param startIndex - Line index to start parsing from
+ * @param fieldName - Name of the field being parsed (for error messages)
+ * @returns Object with parsed text and next line index
+ * @throws Error if field is missing or invalid
+ */
+function parseQuotedField(lines: string[], startIndex: number, fieldName: string): { text: string; nextLineIndex: number } {
+  if (startIndex >= lines.length) {
+    throw new Error(`Missing ${fieldName} field`);
+  }
+
+  const fieldLine = lines[startIndex];
+  const fieldPattern = new RegExp(`^${fieldName}: "(.+)"$`);
+  const smartQuotePattern = new RegExp(`^${fieldName}: \u201C(.+)\u201D$`);
+  
+  // Try simple single-line match first
+  let textMatch = fieldLine.match(fieldPattern);
+  if (textMatch) {
+    return {
+      text: textMatch[1].trim(),
+      nextLineIndex: startIndex + 1
+    };
+  }
+
+  // Try Unicode smart quotes
+  textMatch = fieldLine.match(smartQuotePattern);
+  if (textMatch) {
+    return {
+      text: textMatch[1].trim(),
+      nextLineIndex: startIndex + 1
+    };
+  }
+
+  // Try multi-line parsing
+  if (fieldLine.startsWith(`${fieldName}: "`) || fieldLine.startsWith(`${fieldName}: "`)) {
+    let textContent = '';
+    
+    // Handle both ASCII and Unicode quotes
+    if (fieldLine.startsWith(`${fieldName}: "`)) {
+      textContent = fieldLine.substring(`${fieldName}: "`.length);
+    } else if (fieldLine.startsWith(`${fieldName}: "`)) {
+      textContent = fieldLine.substring(`${fieldName}: "`.length);
+    }
+    
+    let lineIndex = startIndex;
+    
+    // Continue reading lines until we find the closing quote
+    while (lineIndex < lines.length && !textContent.endsWith('"') && !textContent.endsWith('"')) {
+      lineIndex++;
+      if (lineIndex < lines.length) {
+        textContent += '\n' + lines[lineIndex];
+      }
+    }
+    
+    // Remove trailing quote
+    if (textContent.endsWith('"') || textContent.endsWith('"')) {
+      textContent = textContent.slice(0, -1);
+      return {
+        text: textContent.trim(),
+        nextLineIndex: lineIndex + 1
+      };
+    }
+  }
+  
+  throw new Error(`Missing or invalid ${fieldName} field: must be "${fieldName}: "<text>"" (supports both ASCII and Unicode quotes)`);
 } 

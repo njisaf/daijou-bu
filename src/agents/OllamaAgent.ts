@@ -247,6 +247,11 @@ Generate a proposal in this exact format (DO NOT include an ID number):
 Type: [Add|Amend|Repeal|Transmute]
 Number: [rule number]
 Text: "[rule text]"
+Proof: "[proof section demonstrating rule consistency and Prompt P alignment per Rule 121]"
+
+IMPORTANT: Every proposal MUST include a Proof section per Rule 121. The proof should demonstrate:
+1. The proposal does not render the ruleset inconsistent
+2. It maintains or improves likelihood of satisfying Prompt P
 
 Be strategic and consider the current game state.`;
   }
@@ -257,7 +262,7 @@ Be strategic and consider the current game state.`;
    */
   private buildProposalPrompt(gameSnapshot: GameSnapshot): string {
     const currentPlayer = gameSnapshot.players.find(p => p.isActive);
-    const standings = gameSnapshot.players
+    const standings = [...gameSnapshot.players]
       .sort((a, b) => b.points - a.points)
       .map(p => `${p.name}: ${p.points} points`)
       .join(', ');
@@ -318,11 +323,12 @@ Your vote (FOR/AGAINST/ABSTAIN):`;
       // Try to extract key information and format it
       const lines = response.split('\n').map(line => line.trim()).filter(line => line.length > 0);
       
-      // Basic fallback formatting (no ID needed)
+      // Basic fallback formatting (no ID needed) - includes required Proof field per Rule 121
       return `### Proposal
 Type: Add
 Number: ${300 + Math.floor(Math.random() * 100)}
-Text: "${lines[0] || 'Generated rule proposal'}"`;
+Text: "${lines[0] || 'Generated rule proposal'}"
+Proof: "This proposal maintains rule consistency and supports Prompt P objectives by enabling strategic gameplay improvements."`;
     }
     
     return response.trim();

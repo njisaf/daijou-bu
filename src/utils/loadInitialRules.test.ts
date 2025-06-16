@@ -17,9 +17,9 @@ describe('loadInitialRules', () => {
       expect(rules.length).toBeGreaterThan(0);
     });
 
-    it('should return 30 total rules (29 from JSON + 1 injected)', () => {
+    it('should return 36 total rules (35 from JSON + 1 injected)', () => {
       const rules = loadInitialRules('');
-      expect(rules.length).toBe(30);
+      expect(rules.length).toBe(36);
     });
 
     it('should inject rule 100 with Prompt P', () => {

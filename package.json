@@ -1,19 +1,25 @@
 {
   "name": "daijo-bu",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "dev:config": "vite --open /config",
-    "build": "tsc -b && vite build",
+    "dev:judge": "vite --open /game?dev=judge",
+    "build": "vite build",
+    "build:check": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:fuzz": "vitest run --mode fuzz",
     "debug:rules": "npx vitest run src/utils/cloneDefaultRuleset.test.ts --reporter=verbose",
-    "snapshot:ruleset": "npx vitest run src/utils/cloneDefaultRuleset.test.ts --reporter=verbose"
+    "snapshot:ruleset": "npx vitest run src/utils/cloneDefaultRuleset.test.ts --reporter=verbose",
+    "snapshot:scores": "npx vitest run src/models/PlayerModel.test.ts --reporter=verbose",
+    "vitest:profile": "vitest run --runInBand --reporter=heap",
+    "perf": "npm run build && npx lhci autorun --config=./.lighthouserc.js"
   },
   "dependencies": {
     "@testing-library/jest-dom": "^6.6.3",
@@ -35,8 +41,10 @@
   "devDependencies": {
     "@axe-core/react": "^4.10.2",
     "@eslint/js": "^9.25.0",
+    "@lhci/cli": "^0.15.0",
     "@playwright/test": "^1.53.0",
     "@types/node": "^24.0.1",
+    "@types/pako": "^2.0.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react-swc": "^3.9.0",
@@ -44,8 +52,11 @@
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
+    "fast-check": "^4.1.1",
     "globals": "^16.0.0",
     "jsdom": "^26.1.0",
+    "lighthouse": "^12.6.1",
+    "terser": "^5.42.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",
     "vite": "^6.3.5"

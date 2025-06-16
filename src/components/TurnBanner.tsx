@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useGame } from './GameProvider';
 import styles from './TurnBanner.module.css';
@@ -12,11 +12,94 @@ import styles from './TurnBanner.module.css';
  * - Prompt P (proof statement) when available
  * - Game control buttons (start/stop/resume)
  * - Game status indicators
+ * - Point change notifications (Stage 6.5)
  * 
  * @see daijo-bu_architecture.md Section 4 for turn banner specification
  */
 const TurnBanner: React.FC = observer(() => {
   const { gameModel, isRunning, startGame, stopGame, resumeGame } = useGame();
+  const [pointChanges, setPointChanges] = useState<Array<{
+    playerId: string;
+    playerName: string;
+    change: number;
+    id: string;
+  }>>([]);
+  const [lastProposalCount, setLastProposalCount] = useState(0);
+
+  // Track point changes for flash animations (Stage 6.5)
+  useEffect(() => {
+    // Check if new proposals have been resolved
+    const currentProposalCount = gameModel.proposals.filter(p => p.status !== 'pending').length;
+    
+    if (currentProposalCount > lastProposalCount) {
+      // Get the most recently resolved proposal
+      const resolvedProposals = gameModel.proposals.filter(p => p.status !== 'pending');
+      const latestProposal = resolvedProposals[resolvedProposals.length - 1];
+      
+      if (latestProposal && latestProposal.status === 'passed') {
+        // Calculate point changes from this proposal
+        const changes: Array<{ playerId: string; playerName: string; change: number; id: string }> = [];
+        
+        // Proposer gets 10 points
+        const proposer = gameModel.players.find(p => p.id === latestProposal.proposerId);
+        if (proposer) {
+          changes.push({
+            playerId: proposer.id,
+            playerName: proposer.name,
+            change: gameModel.config.proposerPoints,
+            id: `${latestProposal.id}-proposer`
+          });
+        }
+        
+        // Voters get points based on their votes
+        latestProposal.votes.forEach(vote => {
+          const voter = gameModel.players.find(p => p.id === vote.voterId);
+          if (voter) {
+            let change = 0;
+            if (vote.choice === 'FOR') {
+              change = gameModel.config.forVoterPoints;
+            } else if (vote.choice === 'AGAINST') {
+              change = gameModel.config.againstVoterPenalty; // This is negative
+            }
+            // ABSTAIN gets 0 points
+            
+            if (change !== 0) {
+              changes.push({
+                playerId: voter.id,
+                playerName: voter.name,
+                change,
+                id: `${latestProposal.id}-${vote.voterId}`
+              });
+            }
+          }
+        });
+        
+        // Add penalty notifications for missed votes (-10 per Rule 206)
+        const voterIds = new Set(latestProposal.votes.map(v => v.voterId));
+        gameModel.players.forEach(player => {
+          if (!voterIds.has(player.id)) {
+            changes.push({
+              playerId: player.id,
+              playerName: player.name,
+              change: -10,
+              id: `${latestProposal.id}-penalty-${player.id}`
+            });
+          }
+        });
+        
+        setPointChanges(changes);
+        setLastProposalCount(currentProposalCount);
+        
+        // Clear point changes after animation duration (3 seconds)
+        setTimeout(() => {
+          setPointChanges([]);
+        }, 3000);
+      } else {
+        // Proposal failed, just update count
+        setLastProposalCount(currentProposalCount);
+      }
+    }
+  }, [gameModel.proposals, gameModel.players, gameModel.config, lastProposalCount]);
 
   const handleGameControl = async () => {
     try {
@@ -94,6 +177,32 @@ const TurnBanner: React.FC = observer(() => {
           </button>
         </div>
       </div>
+
+      {/* Point Changes Flash Notifications (Stage 6.5) */}
+      {pointChanges.length > 0 && (
+        <div 
+          className={styles.pointChanges}
+          role="status"
+          aria-live="polite"
+          aria-label="Point changes from last proposal"
+        >
+          <h4 className={styles.pointChangesTitle}>💫 Point Changes</h4>
+          <div className={styles.pointChangesList}>
+            {pointChanges.map(change => (
+              <div
+                key={change.id}
+                className={`${styles.pointChange} ${change.change > 0 ? styles.positive : styles.negative}`}
+                aria-label={`${change.playerName} ${change.change > 0 ? 'gained' : 'lost'} ${Math.abs(change.change)} points`}
+              >
+                <span className={styles.playerName}>{change.playerName}</span>
+                <span className={styles.changeValue}>
+                  {change.change > 0 ? '+' : ''}{change.change} pts
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Prompt P Section */}
       {gameModel.config.promptP && (

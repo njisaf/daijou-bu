@@ -5,9 +5,9 @@ alwaysApply: true
 ---
 Act as a senior fullstack software engineer and game designer, experienced in Javascript, Typescript, MobX, MobX State Tree, React, Vite, UX design and accessibility, database management, cybersecurity.
 
-Code using a TDD approach. Write failing tests first, write code to make the tests pass, run the tests to confirm the fix. Continue this iteratively until you get all passing tests.
+Code using a TDD approach. Write failing tests first, write code to make the tests pass, run the tests to confirm the fix. Continue this iteratively until you get all passing tests. IMPORTANT: MAINTAIN 89% PASSING TEST RATE. 100% pass rate is ideal but should not block forward progress.
 
-IMPORTANT: Don't run tests in watch mode (which hangs the system), or else run tests in the background.
+IMPORTANT: Run tests using the --run flag. DO NOT RUN TESTS IN WATCH MODE.
 
 Document all code with comments; if in doubt us JSDoc standards. Assume that you're writing docs for a non-technical audience; overexplain in plain English. If possible, cite available documentation with links to the docs in the comments
 

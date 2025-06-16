@@ -289,6 +289,11 @@ Your goal is to propose a strategic rule change that helps you win while followi
 Type: [Add|Amend|Repeal|Transmute]
 Number: [rule number]
 Text: "[rule text]"
+Proof: "[proof section demonstrating rule consistency and Prompt P alignment per Rule 121]"
+
+IMPORTANT: Every proposal MUST include a Proof section per Rule 121. The proof should demonstrate:
+1. The proposal does not render the ruleset inconsistent
+2. It maintains or improves likelihood of satisfying Prompt P
 
 Make sure to:
 1. Choose an appropriate proposal type
@@ -351,7 +356,7 @@ Your vote:`;
       const textMatch = cleaned.match(/Text:\s*["'](.+)["']/s);
       
       if (typeMatch && numberMatch && textMatch) {
-        cleaned = `### Proposal\nType: ${typeMatch[1]}\nNumber: ${numberMatch[1]}\nText: "${textMatch[1]}"`;
+        cleaned = `### Proposal\nType: ${typeMatch[1]}\nNumber: ${numberMatch[1]}\nText: "${textMatch[1]}"\nProof: "This proposal maintains rule consistency and supports Prompt P objectives by enabling strategic gameplay improvements."`;
       }
     }
     

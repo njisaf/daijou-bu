@@ -72,6 +72,9 @@ export interface GameConfig {
   /** Whether to enable snapshot logging to console */
   enableSnapshotLogging: boolean;
   
+  /** Snapshot compression mode: 'none' for no compression, 'gzip' for gzip compression */
+  snapshotCompression: 'none' | 'gzip';
+  
   /** Agent type configuration */
   agent: {
     /** Type of agent to use ('openai' | 'ollama' | 'mock') */
@@ -99,6 +102,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   snapshotMode: 'full',        // Start with full snapshots
   debugSnapshots: false,       // Production default
   enableSnapshotLogging: true, // Enable by default for development
+  snapshotCompression: 'none', // No compression by default
   agent: {
     type: getAgentTypeFromEnv(), // Auto-detect from environment
     concurrency: 4              // Phase 5 Objective 5: Concurrency bump

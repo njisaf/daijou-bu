@@ -194,6 +194,91 @@
   100% { transform: rotate(360deg); }
 }
 
+/* Point Changes Flash Animation (Stage 6.5) */
+.pointChanges {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+  border-radius: 8px;
+  animation: pointsFlash 3s ease-in-out;
+  border: 2px solid #ff6b6b;
+}
+
+.pointChangesTitle {
+  margin: 0 0 0.75rem 0;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.pointChangesList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pointChange {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.pointChange.positive {
+  border-left: 4px solid #4caf50;
+}
+
+.pointChange.negative {
+  border-left: 4px solid #f44336;
+}
+
+.pointChange .playerName {
+  color: #2c3e50;
+  flex: 1;
+}
+
+.pointChange .changeValue {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.pointChange.positive .changeValue {
+  color: #4caf50;
+}
+
+.pointChange.negative .changeValue {
+  color: #f44336;
+}
+
+/* Point flash animation keyframes */
+@keyframes pointsFlash {
+  0% { 
+    background: linear-gradient(135deg, #ffeb3b 0%, #ffc107 100%);
+    transform: scale(1.02);
+    box-shadow: 0 4px 16px rgba(255, 235, 59, 0.6);
+  }
+  25% { 
+    background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+    transform: scale(1.05);
+  }
+  50% { 
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+  }
+  75% { 
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  100% { 
+    background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+  }
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .header {
@@ -219,5 +304,15 @@
   
   .promptContent {
     max-height: 100px;
+  }
+
+  .pointChanges {
+    margin-top: 1rem;
+    padding: 0.75rem;
+  }
+
+  .pointChange {
+    padding: 0.5rem;
+    font-size: 0.9rem;
   }
 } 
