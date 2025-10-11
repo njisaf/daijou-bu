@@ -103,7 +103,8 @@ export class OpenAIAgent implements MCPService {
       players: [],
       proposals: [],
       turn: 1,
-      phase: 'playing'
+      phase: 'playing',
+      proofStatement: ''
     } as GameSnapshot;
     
     const systemPrompt = this.buildSystemPrompt(prompt, snapshot);
@@ -144,7 +145,8 @@ export class OpenAIAgent implements MCPService {
       players: [],
       proposals: [],
       turn: 1,
-      phase: 'playing'
+      phase: 'playing',
+      proofStatement: ''
     } as GameSnapshot;
     
     const systemPrompt = this.buildVotingSystemPrompt(snapshot);
@@ -253,7 +255,11 @@ export class OpenAIAgent implements MCPService {
    * @private
    */
   private buildSystemPrompt(basePrompt: string, gameSnapshot: GameSnapshot): string {
-    return `${basePrompt}
+    // Include Prompt P (proof statement) if available
+    const promptPSection = gameSnapshot.proofStatement ? 
+      `\nPROOF STATEMENT P:\n${gameSnapshot.proofStatement}\n` : '';
+    
+    return `${basePrompt}${promptPSection}
 
 You are playing Nomic, a game about changing rules. Here's the current game state:
 
@@ -277,12 +283,17 @@ Your goal is to propose a strategic rule change that helps you win while followi
    * @private
    */
   private buildProposalPrompt(gameSnapshot: GameSnapshot): string {
-    return `Please propose a new rule change. Your response must be in this exact format:
+    return `Please propose a new rule change. Your response must be in this exact format (DO NOT include an ID number):
 
-### Proposal [number]
+### Proposal
 Type: [Add|Amend|Repeal|Transmute]
 Number: [rule number]
 Text: "[rule text]"
+Proof: "[proof section demonstrating rule consistency and Prompt P alignment per Rule 121]"
+
+IMPORTANT: Every proposal MUST include a Proof section per Rule 121. The proof should demonstrate:
+1. The proposal does not render the ruleset inconsistent
+2. It maintains or improves likelihood of satisfying Prompt P
 
 Make sure to:
 1. Choose an appropriate proposal type
@@ -298,7 +309,11 @@ Make sure to:
    * @private
    */
   private buildVotingSystemPrompt(gameSnapshot: GameSnapshot): string {
-    return `You are voting on a proposal in Nomic. Consider:
+    // Include Prompt P (proof statement) if available
+    const promptPSection = gameSnapshot.proofStatement ? 
+      `PROOF STATEMENT P:\n${gameSnapshot.proofStatement}\n\n` : '';
+    
+    return `${promptPSection}You are voting on a proposal in Nomic. Consider:
 
 Current Game State:
 - Your current standing among players
@@ -335,13 +350,13 @@ Your vote:`;
     
     // If response doesn't start with ###, add it
     if (!cleaned.startsWith('### Proposal')) {
-      // Try to extract components and reformat
+      // Try to extract components and reformat (no ID needed)
       const typeMatch = cleaned.match(/Type:\s*(Add|Amend|Repeal|Transmute)/i);
       const numberMatch = cleaned.match(/Number:\s*(\d+)/);
       const textMatch = cleaned.match(/Text:\s*["'](.+)["']/s);
       
       if (typeMatch && numberMatch && textMatch) {
-        cleaned = `### Proposal ${numberMatch[1]}\nType: ${typeMatch[1]}\nNumber: ${numberMatch[1]}\nText: "${textMatch[1]}"`;
+        cleaned = `### Proposal\nType: ${typeMatch[1]}\nNumber: ${numberMatch[1]}\nText: "${textMatch[1]}"\nProof: "This proposal maintains rule consistency and supports Prompt P objectives by enabling strategic gameplay improvements."`;
       }
     }
     

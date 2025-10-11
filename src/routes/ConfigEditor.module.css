@@ -1,0 +1,433 @@
+/**
+ * Configuration Editor Styles
+ * 
+ * Modern, accessible styling for the configuration editor with:
+ * - Responsive design for mobile and desktop
+ * - Clear visual hierarchy and spacing
+ * - Focus management and keyboard navigation
+ * - Form validation styling
+ * - Interactive state feedback
+ */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+}
+
+/* Header Section */
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.header h2 {
+  color: #2c3e50;
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.header p {
+  color: #7f8c8d;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.dirtyIndicator {
+  background: #f39c12;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  display: inline-block;
+  margin-top: 1rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Error Display */
+.errorBanner {
+  background: #f8f9fa;
+  border: 1px solid #e74c3c;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  color: #c0392b;
+}
+
+.errorBanner h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.errorBanner p {
+  margin: 0;
+}
+
+.errorBanner ul {
+  margin: 0.5rem 0 0 1rem;
+  padding: 0;
+}
+
+.errorBanner li {
+  margin-bottom: 0.25rem;
+}
+
+/* Action Bar */
+.actionBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 0.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.actionGroup {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Button Styles */
+.button {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px; /* Accessibility: minimum touch target */
+}
+
+.button:hover {
+  background: #2980b9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.button:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.button:focus {
+  outline: 2px solid #f39c12;
+  outline-offset: 2px;
+}
+
+.primary {
+  background: #27ae60;
+}
+
+.primary:hover {
+  background: #229954;
+}
+
+.secondary {
+  background: #95a5a6;
+}
+
+.secondary:hover {
+  background: #7f8c8d;
+}
+
+.success {
+  background: #27ae60;
+}
+
+.success:hover {
+  background: #229954;
+}
+
+.success:disabled {
+  background: #bdc3c7;
+}
+
+.fileButton {
+  background: #3498db;
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+}
+
+.fileButton:hover {
+  background: #2980b9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.fileButton:focus-within {
+  outline: 2px solid #f39c12;
+  outline-offset: 2px;
+}
+
+/* Form Container */
+.formContainer {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.configForm {
+  padding: 2rem;
+}
+
+/* Form Sections */
+.section {
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.section h3 {
+  color: #2c3e50;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section h3::before {
+  content: '';
+  width: 4px;
+  height: 1.5rem;
+  background: #3498db;
+  border-radius: 2px;
+}
+
+/* Form Fields */
+.field {
+  margin-bottom: 1.5rem;
+}
+
+.field label {
+  display: block;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e1e8ed;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background: white;
+  box-sizing: border-box;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.field input:invalid {
+  border-color: #e74c3c;
+}
+
+.field input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.field input[type="number"]::-webkit-outer-spin-button,
+.field input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.field textarea {
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.field select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25rem;
+  padding-right: 3rem;
+}
+
+/* Checkbox Styling */
+.checkboxLabel {
+  display: flex !important;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-weight: 500 !important;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: auto !important;
+  margin: 0;
+  transform: scale(1.2);
+}
+
+/* Help Text */
+.helpText {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
+/* Read-only Fields */
+.readOnlyField {
+  background: #f8f9fa !important;
+  color: #6c757d;
+  cursor: text;
+}
+
+.readOnlyField:focus {
+  border-color: #adb5bd !important;
+  box-shadow: 0 0 0 3px rgba(173, 181, 189, 0.1) !important;
+}
+
+/* Development Section */
+.devSection {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin-top: 2rem;
+  border-left: 4px solid #f39c12;
+}
+
+.devSection h4 {
+  color: #2c3e50;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .header h2 {
+    font-size: 2rem;
+  }
+
+  .actionBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionGroup {
+    justify-content: center;
+  }
+
+  .configForm {
+    padding: 1.5rem;
+  }
+
+  .section h3 {
+    font-size: 1.3rem;
+  }
+
+  .button,
+  .fileButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .button {
+    border: 2px solid currentColor;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    border-width: 2px;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .fileButton,
+  .field input,
+  .field select,
+  .field textarea,
+  .dirtyIndicator {
+    transition: none;
+    animation: none;
+  }
+
+  .button:hover {
+    transform: none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .actionBar,
+  .devSection {
+    display: none;
+  }
+
+  .container {
+    padding: 0;
+    max-width: none;
+  }
+
+  .formContainer {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+} 

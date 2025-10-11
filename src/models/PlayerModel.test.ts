@@ -1,198 +1,398 @@
+/**
+ * Tests for PlayerModel with Rule 301-303 counters
+ */
+
 import { describe, it, expect } from 'vitest';
-import { PlayerModel, createPlayer } from './PlayerModel';
+import { PlayerModel } from './PlayerModel';
 
 describe('PlayerModel', () => {
-  it('should create a player with initial zero points', () => {
-    const player = createPlayer({
-      id: 'player1',
-      name: 'Alice',
-      icon: '🤖',
-      llmEndpoint: 'http://localhost:3001'
+  describe('basic functionality', () => {
+    it('should create player with zero counters', () => {
+      const player = PlayerModel.create({
+        id: 'test-player',
+        name: 'Test Player',
+        icon: '🎮',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false,
+        proposalsPassed: 0,
+        accurateVotes: 0,
+        inaccurateVotes: 0,
+        agentType: 'mock'
+      });
+
+      expect(player.id).toBe('test-player');
+      expect(player.name).toBe('Test Player');
+      expect(player.points).toBe(0);
+      expect(player.proposalsPassed).toBe(0);
+      expect(player.accurateVotes).toBe(0);
+      expect(player.inaccurateVotes).toBe(0);
     });
 
-    expect(player.id).toBe('player1');
-    expect(player.name).toBe('Alice');
-    expect(player.icon).toBe('🤖');
-    expect(player.llmEndpoint).toBe('http://localhost:3001');
-    expect(player.points).toBe(0);
-  });
+    it('should award points correctly', () => {
+      const player = PlayerModel.create({
+        id: 'test',
+        name: 'Test',
+        icon: '🎮',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
 
-  it('should allow awarding points', () => {
-    const player = createPlayer({
-      id: 'player2',
-      name: 'Bob',
-      icon: '🔥',
-      llmEndpoint: 'http://localhost:3002'
+      player.awardPoints(10);
+      expect(player.points).toBe(10);
+
+      player.awardPoints(5);
+      expect(player.points).toBe(15);
     });
 
-    player.awardPoints(10);
-    expect(player.points).toBe(10);
+    it('should handle negative points and reset to zero per Rule 208', () => {
+      const player = PlayerModel.create({
+        id: 'test',
+        name: 'Test',
+        icon: '🎮',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
 
-    player.awardPoints(5);
-    expect(player.points).toBe(15);
+      player.awardPoints(5);
+      expect(player.points).toBe(5);
+
+      // Award negative points (penalty)
+      player.awardPoints(-10);
+      expect(player.points).toBe(0); // Should reset to 0, not -5
+    });
   });
 
-  it('should allow deducting points', () => {
-    const player = createPlayer({
-      id: 'player3',
-      name: 'Charlie',
-      icon: '⚡',
-      llmEndpoint: 'http://localhost:3003'
+  describe('Rule 301: Proposals Passed Counter', () => {
+    it('should increment proposals passed counter', () => {
+      const player = PlayerModel.create({
+        id: 'proposer',
+        name: 'Proposer',
+        icon: '📝',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
+
+      expect(player.proposalsPassed).toBe(0);
+
+      player.incrementProposalCounter(1);
+      expect(player.proposalsPassed).toBe(1);
+
+      player.incrementProposalCounter(1);
+      expect(player.proposalsPassed).toBe(2);
     });
 
-    player.awardPoints(20);
-    expect(player.points).toBe(20);
+    it('should decrement proposals passed counter but not below zero', () => {
+      const player = PlayerModel.create({
+        id: 'proposer',
+        name: 'Proposer',
+        icon: '📝',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
 
-    player.deductPoints(5);
-    expect(player.points).toBe(15);
+      // Start with some passed proposals
+      player.incrementProposalCounter(3);
+      expect(player.proposalsPassed).toBe(3);
 
-    player.deductPoints(10);
-    expect(player.points).toBe(5);
-  });
+      // Decrement for failed proposal
+      player.incrementProposalCounter(-1);
+      expect(player.proposalsPassed).toBe(2);
 
-  it('should not allow points to go below zero', () => {
-    const player = createPlayer({
-      id: 'player4',
-      name: 'Diana',
-      icon: '🌟',
-      llmEndpoint: 'http://localhost:3004'
+      // Try to go below zero
+      player.incrementProposalCounter(-5);
+      expect(player.proposalsPassed).toBe(0); // Should not go negative
     });
 
-    player.deductPoints(10);
-    expect(player.points).toBe(0);
+    it('should handle mixed increments and decrements', () => {
+      const player = PlayerModel.create({
+        id: 'proposer',
+        name: 'Proposer',
+        icon: '📝',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
+
+      player.incrementProposalCounter(2); // 2 passed
+      player.incrementProposalCounter(-1); // 1 failed
+      player.incrementProposalCounter(1); // 1 more passed
+      
+      expect(player.proposalsPassed).toBe(2);
+    });
   });
 
-  it('should reset points to zero', () => {
-    const player = createPlayer({
-      id: 'player5',
-      name: 'Eve',
-      icon: '💎',
-      llmEndpoint: 'http://localhost:3005'
+  describe('Rule 302: Vote Accuracy Tracking', () => {
+    it('should track accurate votes', () => {
+      const player = PlayerModel.create({
+        id: 'voter',
+        name: 'Voter',
+        icon: '🗳️',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
+
+      expect(player.accurateVotes).toBe(0);
+      expect(player.inaccurateVotes).toBe(0);
+
+      player.recordVoteAccuracy(true);
+      expect(player.accurateVotes).toBe(1);
+      expect(player.inaccurateVotes).toBe(0);
+
+      player.recordVoteAccuracy(true);
+      expect(player.accurateVotes).toBe(2);
+      expect(player.inaccurateVotes).toBe(0);
     });
 
-    player.awardPoints(50);
-    expect(player.points).toBe(50);
+    it('should track inaccurate votes', () => {
+      const player = PlayerModel.create({
+        id: 'voter',
+        name: 'Voter',
+        icon: '🗳️',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
 
-    player.resetPoints();
-    expect(player.points).toBe(0);
-  });
+      player.recordVoteAccuracy(false);
+      expect(player.accurateVotes).toBe(0);
+      expect(player.inaccurateVotes).toBe(1);
 
-  it('should check if player has won (100 points)', () => {
-    const player = createPlayer({
-      id: 'player6',
-      name: 'Frank',
-      icon: '🏆',
-      llmEndpoint: 'http://localhost:3006'
+      player.recordVoteAccuracy(false);
+      expect(player.accurateVotes).toBe(0);
+      expect(player.inaccurateVotes).toBe(2);
     });
 
-    expect(player.hasWon).toBe(false);
+    it('should track mixed vote accuracy', () => {
+      const player = PlayerModel.create({
+        id: 'voter',
+        name: 'Voter',
+        icon: '🗳️',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
 
-    player.awardPoints(99);
-    expect(player.hasWon).toBe(false);
+      player.recordVoteAccuracy(true);  // Accurate
+      player.recordVoteAccuracy(false); // Inaccurate
+      player.recordVoteAccuracy(true);  // Accurate
+      player.recordVoteAccuracy(false); // Inaccurate
+      player.recordVoteAccuracy(true);  // Accurate
 
-    player.awardPoints(1);
-    expect(player.hasWon).toBe(true);
-
-    player.awardPoints(10);
-    expect(player.hasWon).toBe(true);
+      expect(player.accurateVotes).toBe(3);
+      expect(player.inaccurateVotes).toBe(2);
+      expect(player.totalVotes).toBe(5);
+    });
   });
 
-  it('should provide player summary', () => {
-    const player = createPlayer({
-      id: 'player7',
-      name: 'Grace',
-      icon: '🚀',
-      llmEndpoint: 'http://localhost:3007'
+  describe('Rule 206: Missed Vote Penalty', () => {
+    it('should apply -10 point penalty for missed vote', () => {
+      const player = PlayerModel.create({
+        id: 'absent',
+        name: 'Absent Player',
+        icon: '😴',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
+
+      // Start with some points
+      player.awardPoints(20);
+      expect(player.points).toBe(20);
+
+      // Apply missed vote penalty
+      player.applyMissedVotePenalty();
+      expect(player.points).toBe(10); // 20 - 10 = 10
     });
 
-    player.awardPoints(42);
-    
-    const summary = player.summary;
-    expect(summary).toContain('Grace');
-    expect(summary).toContain('🚀');
-    expect(summary).toContain('42');
+    it('should reset to zero if penalty makes score negative', () => {
+      const player = PlayerModel.create({
+        id: 'poor',
+        name: 'Poor Player',
+        icon: '💸',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
+
+      // Start with only 5 points
+      player.awardPoints(5);
+      expect(player.points).toBe(5);
+
+      // Apply missed vote penalty (-10)
+      player.applyMissedVotePenalty();
+      expect(player.points).toBe(0); // Should reset to 0, not -5
+    });
   });
 
-  it('should validate required fields', () => {
-    expect(() => createPlayer({
-      id: '',
-      name: 'Test',
-      icon: '🤖',
-      llmEndpoint: 'http://localhost:3000'
-    })).toThrow();
+  describe('computed properties', () => {
+    it('should calculate total votes correctly', () => {
+      const player = PlayerModel.create({
+        id: 'voter',
+        name: 'Active Voter',
+        icon: '📊',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
 
-    expect(() => createPlayer({
-      id: 'test',
-      name: '',
-      icon: '🤖',
-      llmEndpoint: 'http://localhost:3000'
-    })).toThrow();
+      expect(player.totalVotes).toBe(0);
 
-    expect(() => createPlayer({
-      id: 'test',
-      name: 'Test',
-      icon: '',
-      llmEndpoint: 'http://localhost:3000'
-    })).toThrow();
+      player.recordVoteAccuracy(true);
+      player.recordVoteAccuracy(false);
+      player.recordVoteAccuracy(true);
 
-    expect(() => createPlayer({
-      id: 'test',
-      name: 'Test',
-      icon: '🤖',
-      llmEndpoint: ''
-    })).toThrow();
-  });
-
-  it('should validate endpoint URL format', () => {
-    expect(() => createPlayer({
-      id: 'test',
-      name: 'Test',
-      icon: '🤖',
-      llmEndpoint: 'not-a-url'
-    })).toThrow();
-
-    expect(() => createPlayer({
-      id: 'test',
-      name: 'Test',
-      icon: '🤖',
-      llmEndpoint: 'ftp://invalid-protocol.com'
-    })).toThrow();
-  });
-
-  it('should accept valid HTTP and HTTPS endpoints', () => {
-    const httpPlayer = createPlayer({
-      id: 'http-player',
-      name: 'HTTP Player',
-      icon: '🌐',
-      llmEndpoint: 'http://localhost:3000'
+      expect(player.totalVotes).toBe(3);
+      expect(player.accurateVotes).toBe(2);
+      expect(player.inaccurateVotes).toBe(1);
     });
 
-    const httpsPlayer = createPlayer({
-      id: 'https-player',
-      name: 'HTTPS Player',
-      icon: '🔒',
-      llmEndpoint: 'https://api.example.com/llm'
+    it('should calculate vote accuracy percentage', () => {
+      const player = PlayerModel.create({
+        id: 'voter',
+        name: 'Accurate Voter',
+        icon: '🎯',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
+
+      // No votes yet
+      expect(player.voteAccuracyPercentage).toBe(0);
+
+      // 2 accurate, 1 inaccurate = 67% (Math.round(2/3 * 100))
+      player.recordVoteAccuracy(true);
+      player.recordVoteAccuracy(true);
+      player.recordVoteAccuracy(false);
+
+      expect(player.voteAccuracyPercentage).toBe(67);
+
+      // All accurate = 100%
+      player.recordVoteAccuracy(true);
+      player.recordVoteAccuracy(true);
+
+      expect(player.voteAccuracyPercentage).toBe(80); // 4/5 = 80%
     });
 
-    expect(httpPlayer.llmEndpoint).toBe('http://localhost:3000');
-    expect(httpsPlayer.llmEndpoint).toBe('https://api.example.com/llm');
+    it('should generate performance summary', () => {
+      const player = PlayerModel.create({
+        id: 'performer',
+        name: 'Top Performer',
+        icon: '🏆',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
+
+      player.awardPoints(50);
+      player.incrementProposalCounter(3);
+      player.recordVoteAccuracy(true);
+      player.recordVoteAccuracy(true);
+      player.recordVoteAccuracy(false);
+
+      const summary = player.performanceSummary;
+
+      expect(summary).toContain('Top Performer');
+      expect(summary).toContain('⭐50pts');
+      expect(summary).toContain('(3 passed)');
+      expect(summary).toContain('2/3 accurate votes');
+    });
+
+    it('should generate score report data', () => {
+      const player = PlayerModel.create({
+        id: 'reporter',
+        name: 'Score Reporter',
+        icon: '📈',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
+
+      player.awardPoints(25);
+      player.incrementProposalCounter(2);
+      player.recordVoteAccuracy(true);
+      player.recordVoteAccuracy(false);
+      player.recordVoteAccuracy(true);
+      player.recordVoteAccuracy(true);
+
+      const reportData = player.scoreReportData;
+
+      expect(reportData.name).toBe('Score Reporter');
+      expect(reportData.points).toBe(25);
+      expect(reportData.proposalsPassed).toBe(2);
+      expect(reportData.accurateVotes).toBe(3);
+      expect(reportData.inaccurateVotes).toBe(1);
+      expect(reportData.totalVotes).toBe(4);
+      expect(reportData.voteAccuracy).toBe(75);
+    });
   });
 
-  it('should serialize to JSON correctly', () => {
-    const player = createPlayer({
-      id: 'json-test',
-      name: 'JSON Test',
-      icon: '📝',
-      llmEndpoint: 'http://localhost:3000'
+  describe('integration scenarios', () => {
+    it('should handle complete game scenario', () => {
+      const player = PlayerModel.create({
+        id: 'game-player',
+        name: 'Game Player',
+        icon: '🎲',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
+
+      // Simulate a complete game experience
+      
+      // Round 1: Successful proposal
+      player.awardPoints(10); // Proposer points
+      player.incrementProposalCounter(1); // Proposal passed
+      player.recordVoteAccuracy(true); // Voted FOR winning proposal
+      
+      // Round 2: Failed proposal 
+      player.incrementProposalCounter(-1); // Proposal failed
+      player.recordVoteAccuracy(false); // Voted FOR losing proposal
+      
+      // Round 3: Voting only
+      player.awardPoints(5); // FOR vote bonus
+      player.recordVoteAccuracy(true); // Voted FOR winning proposal
+      
+      // Round 4: Missed vote
+      player.applyMissedVotePenalty(); // -10 points for missing vote
+
+      // Final expectations
+      expect(player.points).toBe(5); // 10 + 5 - 10 = 5
+      expect(player.proposalsPassed).toBe(0); // 1 - 1 = 0 (minimum)
+      expect(player.accurateVotes).toBe(2);
+      expect(player.inaccurateVotes).toBe(1);
+      expect(player.totalVotes).toBe(3);
+      expect(player.voteAccuracyPercentage).toBe(67); // Math.round(2/3 * 100)
     });
 
-    player.awardPoints(25);
+    it('should handle edge case with no activity', () => {
+      const player = PlayerModel.create({
+        id: 'inactive',
+        name: 'Inactive Player',
+        icon: '😴',
+        llmEndpoint: 'http://localhost:3001',
+        points: 0,
+        isActive: false
+      });
 
-    const json = JSON.parse(JSON.stringify(player));
-    expect(json.id).toBe('json-test');
-    expect(json.name).toBe('JSON Test');
-    expect(json.icon).toBe('📝');
-    expect(json.llmEndpoint).toBe('http://localhost:3000');
-    expect(json.points).toBe(25);
+      // No activity - all should be zero/default
+      expect(player.points).toBe(0);
+      expect(player.proposalsPassed).toBe(0);
+      expect(player.accurateVotes).toBe(0);
+      expect(player.inaccurateVotes).toBe(0);
+      expect(player.totalVotes).toBe(0);
+      expect(player.voteAccuracyPercentage).toBe(0);
+
+      const summary = player.performanceSummary;
+      expect(summary).toContain('Inactive Player');
+      expect(summary).toContain('⭐0pts'); 
+      expect(summary).toContain('(0 passed)');
+      expect(summary).toContain('0/0 accurate votes');
+    });
   });
 }); 

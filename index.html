@@ -2,9 +2,110 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Enhanced viewport with user-scalable for accessibility -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    
+    <!-- Primary Meta Tags -->
+    <title>大条部 - Daijo-bu Proof-Nomic Game for LLMs</title>
+    <meta name="title" content="大条部 - Daijo-bu Proof-Nomic Game for LLMs" />
+    <meta name="description" content="A production-ready Proof-Nomic game where autonomous AI players propose rule changes, vote on proposals, and compete for victory through strategic gameplay." />
+    <meta name="keywords" content="nomic, game, AI, LLM, proof-nomic, strategy, rules, autonomous, agents, TypeScript, React" />
+    <meta name="author" content="Daijo-bu Development Team" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="English" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://daijo-bu.com/" />
+    <meta property="og:title" content="大条部 - Daijo-bu Proof-Nomic Game for LLMs" />
+    <meta property="og:description" content="A production-ready Proof-Nomic game where autonomous AI players propose rule changes, vote on proposals, and compete for victory through strategic gameplay." />
+    <meta property="og:image" content="/favicon.svg" />
+    <meta property="og:image:width" content="32" />
+    <meta property="og:image:height" content="32" />
+    <meta property="og:site_name" content="Daijo-bu" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary" />
+    <meta property="twitter:url" content="https://daijo-bu.com/" />
+    <meta property="twitter:title" content="大条部 - Daijo-bu Proof-Nomic Game for LLMs" />
+    <meta property="twitter:description" content="A production-ready Proof-Nomic game where autonomous AI players propose rule changes, vote on proposals, and compete for victory through strategic gameplay." />
+    <meta property="twitter:image" content="/favicon.svg" />
+    
+    <!-- Progressive Web App -->
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="大条部" />
+    <meta name="application-name" content="Daijo-bu" />
+    
+    <!-- Security -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    
+    <!-- Performance -->
+    <meta http-equiv="Cache-Control" content="public, max-age=31536000" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://api.openai.com" />
+    
+    <!-- Favicon and Icons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=4" />
-    <title>大条部</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    
+    <!-- High Contrast Theme Support -->
+    <style>
+      /* High contrast mode support for accessibility */
+      @media (prefers-contrast: high) {
+        :root {
+          --primary-bg: #000000;
+          --primary-text: #ffffff;
+          --secondary-bg: #ffffff;
+          --secondary-text: #000000;
+          --accent-color: #ffff00;
+          --border-color: #ffffff;
+        }
+        
+        body {
+          background-color: var(--primary-bg) !important;
+          color: var(--primary-text) !important;
+        }
+        
+        button, input, select, textarea {
+          background-color: var(--secondary-bg) !important;
+          color: var(--secondary-text) !important;
+          border: 2px solid var(--border-color) !important;
+        }
+        
+        a {
+          color: var(--accent-color) !important;
+          text-decoration: underline !important;
+        }
+        
+        .card, .modal, .dropdown {
+          background-color: var(--primary-bg) !important;
+          border: 2px solid var(--border-color) !important;
+        }
+      }
+      
+      /* Reduced motion support for accessibility */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+      
+      /* Focus visible for keyboard navigation */
+      :focus-visible {
+        outline: 3px solid #005fcc;
+        outline-offset: 2px;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { GameModel } from '../models/GameModel';
-import { DEFAULT_CONFIG } from '../config';
+import { DEFAULT_CONFIG, getGameConfig } from '../config';
 import { TurnOrchestrator } from '../orchestrator/TurnOrchestrator';
 import { SnapshotLogger } from '../logging/SnapshotLogger';
-import { MockMCPService } from '../mocks/MockMCPService';
-import { OpenAIAgent } from '../agents/openaiAgent';
+import { getAgentFactory } from '../agents/AgentFactory';
 import { createPersistence, type IGamePersistence } from '../persistence';
+import { loadInitialRules } from '../utils/loadInitialRules';
 
 /**
  * Context value provided by GameProvider
@@ -72,8 +72,9 @@ interface GameProviderProps {
 export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP }) => {
   const [gameModel] = useState(() => {
     // Try to restore from persistence or create new game
+    console.log('🎮 [GameProvider] Creating game model with promptP:', promptP);
     return GameModel.create({
-      config: DEFAULT_CONFIG,
+      config: { ...DEFAULT_CONFIG, promptP },
       players: [],
       rules: [],
       proposals: [],
@@ -83,38 +84,43 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP })
     });
   });
 
-  // Create LLM service based on environment configuration
-  const [mcpService] = useState(() => {
+  // Create LLM service using AgentFactory which properly handles agent type detection
+  const [agentFactory] = useState(() => {
     console.log('🚀 [GameProvider] Initializing LLM service...', new Date().toISOString());
+    const config = getGameConfig();
+    console.log('🚀 [GameProvider] Agent type from config:', config.agent.type);
+    console.log('🚀 [GameProvider] AGENT_TYPE env var:', process.env.AGENT_TYPE || 'not set');
+    console.log('🚀 [GameProvider] LLM_TOKEN present:', !!process.env.LLM_TOKEN);
+    console.log('🚀 [GameProvider] OLLAMA_BASE_URL present:', !!process.env.OLLAMA_BASE_URL);
+    console.log('🚀 [GameProvider] OLLAMA_MODEL present:', !!process.env.OLLAMA_MODEL);
     
-    if (process.env.LLM_TOKEN) {
-      console.log('🚀 [GameProvider] OpenAI API key detected - using real LLM integration');
-      console.log('🚀 [GameProvider] LLM_TOKEN present:', !!process.env.LLM_TOKEN);
-      console.log('🚀 [GameProvider] Service type: OpenAI GPT-3.5-turbo');
+    return getAgentFactory();
+  });
+
+  // Create adapter to make AgentFactory compatible with MCPService interface
+  const [mcpServiceAdapter] = useState(() => {
+    return {
+      // MCPService expects: propose(prompt, gameSnapshot)
+      // AgentFactory provides: propose(gameSnapshot, prompt?)
+      propose: (prompt: string, gameSnapshot: any) => {
+        return agentFactory.propose(gameSnapshot, prompt);
+      },
       
-      const openaiAgent = new OpenAIAgent();
-      if (openaiAgent.isAvailable()) {
-        console.log('✅ [GameProvider] OpenAI agent initialized successfully');
-        console.log('✅ [GameProvider] Real AI gameplay ENABLED');
-        return openaiAgent;
-      } else {
-        console.warn('⚠️ [GameProvider] OpenAI agent not available, falling back to mock service');
-        console.warn('⚠️ [GameProvider] Reason: API key validation failed');
+      // Both have same signature: vote(proposal, gameSnapshot)
+      vote: (proposal: string, gameSnapshot: any) => {
+        return agentFactory.vote(proposal, gameSnapshot);
+      },
+      
+      // Both have same signature: getCurrentSeed()
+      getCurrentSeed: () => {
+        return agentFactory.getCurrentSeed();
       }
-    } else {
-      console.log('🚀 [GameProvider] No OpenAI API key - using mock LLM service');
-      console.log('🚀 [GameProvider] Service type: Deterministic Mock');
-      console.log('🚀 [GameProvider] Real AI gameplay DISABLED');
-    }
-    
-    console.log('🎭 [GameProvider] Falling back to MockMCPService');
-    console.log('🎭 [GameProvider] This will provide predictable, deterministic responses');
-    return new MockMCPService();
+    };
   });
 
   const [logger] = useState(() => new SnapshotLogger(gameModel));
   const [orchestrator] = useState(() => {
-    return new TurnOrchestrator(gameModel, mcpService, logger);
+    return new TurnOrchestrator(gameModel, mcpServiceAdapter, logger);
   });
   const [persistence, setPersistence] = useState<IGamePersistence | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -165,14 +171,19 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP })
    * Set up a new game with default players and rules
    */
   const setupNewGame = () => {
-    // Add players
+    // Get the current agent type from configuration
+    const config = getGameConfig();
+    const agentType = config.agent.type;
+    
+    // Add players with correct agentType
     gameModel.addPlayer({
       id: 'alice',
       name: 'Alice',
       icon: '🤖',
       llmEndpoint: 'http://localhost:3001',
       points: 0,
-      isActive: false
+      isActive: false,
+      agentType
     });
 
     gameModel.addPlayer({
@@ -181,7 +192,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP })
       icon: '🦾',
       llmEndpoint: 'http://localhost:3002',
       points: 0,
-      isActive: false
+      isActive: false,
+      agentType
     });
 
     gameModel.addPlayer({
@@ -190,39 +202,18 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP })
       icon: '🧠',
       llmEndpoint: 'http://localhost:3003',
       points: 0,
-      isActive: false
+      isActive: false,
+      agentType
     });
 
-    // Add initial rules (from initialRules.md)
-    gameModel.addRule({
-      id: 101,
-      text: 'All players must abide by the rules.',
-      mutable: false
-    });
+    console.log(`🎮 [GameProvider] Created players with agentType: ${agentType}`);
 
-    gameModel.addRule({
-      id: 102,
-      text: 'The first player to reach 100 points wins.',
-      mutable: false
-    });
-
-    gameModel.addRule({
-      id: 103,
-      text: 'A rule-change is any change in the rules including adding, deleting, or amending.',
-      mutable: false
-    });
-
-    gameModel.addRule({
-      id: 201,
-      text: 'Players may form alliances.',
-      mutable: true
-    });
-
-    gameModel.addRule({
-      id: 202,
-      text: 'Each player vote must be either FOR, AGAINST, or ABSTAIN.',
-      mutable: true
-    });
+    // Load initial rules from JSON with Prompt P injection
+    console.log('📋 [GameProvider] Loading initial rules with promptP:', promptP);
+    const initialRules = loadInitialRules(promptP);
+    gameModel.loadFromRules(initialRules);
+    
+    console.log(`📋 [GameProvider] Loaded ${initialRules.length} rules (including rule 100 with Prompt P)`);
 
     // Setup the game (this sets it to playing phase)
     gameModel.setupGame();

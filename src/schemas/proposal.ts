@@ -9,7 +9,13 @@ import { z } from 'zod';
  * - Repeal: Removes an existing rule
  * - Transmute: Changes a rule's mutability status
  * 
+ * Per Rule 121: Every Proposal must include a Proof Section showing:
+ * (a) its adoption does not render the ruleset inconsistent, and 
+ * (b) maintains or improves the likelihood that an LLM following the 
+ *     Development Rulebook can satisfy Prompt P
+ * 
  * @see devbot_kickoff_prompt.md Section 2.1 Proposal Markdown Grammar
+ * @see initialRules.json Rule 121 (Proof Requirement)
  */
 export const ProposalSchema = z.object({
   /** Unique identifier for the proposal */
@@ -22,29 +28,54 @@ export const ProposalSchema = z.object({
   number: z.number().int().positive(),
   
   /** Full text of the rule */
-  text: z.string().min(1, 'Rule text cannot be empty')
+  text: z.string().min(1, 'Rule text cannot be empty'),
+
+  /** Proof section text (required per Rule 121) */
+  proof: z.string().min(1, 'Proof section cannot be empty per Rule 121'),
+
+  /** Judge verdict on proof soundness (optional - set during judging phase) */
+  judgeVerdict: z.enum(['sound', 'unsound', 'pending']).optional().default('pending'),
+
+  /** Judge's written justification (optional - set during judging phase) */
+  judgeJustification: z.string().optional()
 });
 
+/**
+ * Proposal type derived from schema
+ */
 export type Proposal = z.infer<typeof ProposalSchema>;
+
+/**
+ * Schema for proposals without ID (used during creation)
+ */
+export const ProposalWithoutIdSchema = ProposalSchema.omit({ id: true });
+
+/**
+ * Proposal type without ID (used during creation)
+ */
+export type ProposalWithoutId = z.infer<typeof ProposalWithoutIdSchema>;
 
 /**
  * Parses proposal markdown into a structured Proposal object
  * 
- * Expected format:
+ * Expected format (Rule 121 compliant):
  * ### Proposal <id>
  * Type: Add | Amend | Repeal | Transmute
  * Number: <int>
  * Text: "<rule text>"
+ * Proof: "<proof section demonstrating consistency and Prompt P alignment>"
+ * 
+ * Note: Supports both ASCII quotes (") and Unicode smart quotes ("") from LLMs
  * 
  * @param markdown - The proposal markdown string
  * @returns Parsed and validated Proposal object
- * @throws Error if markdown is invalid or doesn't match expected format
+ * @throws Error if markdown is invalid, doesn't match expected format, or lacks proof section
  */
 export function parseProposalMarkdown(markdown: string): Proposal {
   const lines = markdown.trim().split('\n');
   
-  if (lines.length < 4) {
-    throw new Error('Invalid proposal format: must have at least 4 lines');
+  if (lines.length < 5) {
+    throw new Error('Invalid proposal format: must have at least 5 lines (header, type, number, text, proof)');
   }
 
   // Parse proposal ID from header line
@@ -77,19 +108,20 @@ export function parseProposalMarkdown(markdown: string): Proposal {
   }
 
   // Parse text field
-  const textMatch = lines[3].match(/^Text: "(.+)"$/);
-  if (!textMatch) {
-    throw new Error('Missing or invalid Text field: must be "Text: "<text>""');
-  }
-  
-  const text = textMatch[1].trim();
+  const { text, nextLineIndex } = parseQuotedField(lines, 3, 'Text');
+
+  // Parse proof field (required per Rule 121)
+  const { text: proof } = parseQuotedField(lines, nextLineIndex, 'Proof');
 
   // Create and validate the proposal object
   const proposal = {
     id,
     type,
     number,
-    text
+    text,
+    proof,
+    judgeVerdict: 'pending' as const,
+    judgeJustification: undefined
   };
 
   // Use Zod to validate the parsed object
@@ -99,4 +131,208 @@ export function parseProposalMarkdown(markdown: string): Proposal {
   }
 
   return result.data;
+}
+
+/**
+ * Parses proposal markdown into a ProposalWithoutId object (no ID required)
+ * 
+ * Expected format (Rule 121 compliant):
+ * ### Proposal
+ * Type: Add | Amend | Repeal | Transmute
+ * Number: <int>
+ * Text: "<rule text>"
+ * Proof: "<proof section demonstrating consistency and Prompt P alignment>"
+ * 
+ * Note: Supports both ASCII quotes (") and Unicode smart quotes ("") from LLMs
+ * 
+ * @param markdown - The proposal markdown string
+ * @returns Parsed and validated ProposalWithoutId object
+ * @throws Error if markdown is invalid, doesn't match expected format, or lacks proof section
+ */
+export function parseProposalMarkdownWithoutId(markdown: string): ProposalWithoutId {
+  const lines = markdown.trim().split('\n');
+  
+  if (lines.length < 4) {
+    throw new Error('Invalid proposal format: must have at least 4 lines (header, type, number, text, proof)');
+  }
+
+  // Parse header line (no ID required)
+  const headerMatch = lines[0].match(/^### Proposal$/);
+  if (!headerMatch) {
+    throw new Error('Invalid proposal header: must be "### Proposal"');
+  }
+
+  // Parse type field
+  const typeMatch = lines[1].match(/^Type: (.+)$/);
+  if (!typeMatch) {
+    throw new Error('Missing or invalid Type field');
+  }
+  const type = typeMatch[1].trim();
+
+  // Parse number field  
+  const numberMatch = lines[2].match(/^Number: (\d+)$/);
+  if (!numberMatch) {
+    throw new Error('Missing or invalid Number field: must be "Number: <integer>"');
+  }
+  
+  const number = parseInt(numberMatch[1], 10);
+  if (isNaN(number)) {
+    throw new Error('Invalid rule number: must be a number');
+  }
+
+  // Parse text field
+  const { text, nextLineIndex } = parseQuotedField(lines, 3, 'Text');
+
+  // Parse proof field (required per Rule 121)
+  const { text: proof } = parseQuotedField(lines, nextLineIndex, 'Proof');
+
+  // Create and validate the proposal object
+  const proposal = {
+    type,
+    number,
+    text,
+    proof,
+    judgeVerdict: 'pending' as const,
+    judgeJustification: undefined
+  };
+
+  // Use Zod to validate the parsed object
+  const result = ProposalWithoutIdSchema.safeParse(proposal);
+  if (!result.success) {
+    throw new Error(`Invalid proposal data: ${result.error.message}`);
+  }
+
+  return result.data;
+}
+
+/**
+ * Helper function to parse quoted fields with multi-line support
+ * 
+ * Handles both ASCII quotes (") and Unicode smart quotes ("") from LLMs.
+ * Supports multi-line content within quotes.
+ * Enhanced to handle malformed LLM output including XML-like tags.
+ * 
+ * @param lines - Array of markdown lines
+ * @param startIndex - Line index to start parsing from
+ * @param fieldName - Name of the field being parsed (for error messages)
+ * @returns Object with parsed text and next line index
+ * @throws Error if field is missing or invalid
+ */
+function parseQuotedField(lines: string[], startIndex: number, fieldName: string): { text: string; nextLineIndex: number } {
+  if (startIndex >= lines.length) {
+    throw new Error(`Missing ${fieldName} field`);
+  }
+
+  const fieldLine = lines[startIndex];
+  const fieldPattern = new RegExp(`^${fieldName}: "(.+)"$`);
+  const smartQuotePattern = new RegExp(`^${fieldName}: \u201C(.+)\u201D$`);
+  
+  // Try simple single-line match first
+  let textMatch = fieldLine.match(fieldPattern);
+  if (textMatch) {
+    const cleanedText = textMatch[1]
+      .replace(/\[\/?(text|proof)\]/gi, '') // Remove XML-like tags
+      .trim();
+    return {
+      text: cleanedText,
+      nextLineIndex: startIndex + 1
+    };
+  }
+
+  // Try Unicode smart quotes
+  textMatch = fieldLine.match(smartQuotePattern);
+  if (textMatch) {
+    const cleanedText = textMatch[1]
+      .replace(/\[\/?(text|proof)\]/gi, '') // Remove XML-like tags
+      .trim();
+    return {
+      text: cleanedText,
+      nextLineIndex: startIndex + 1
+    };
+  }
+
+  // Try multi-line parsing with enhanced error recovery
+  if (fieldLine.startsWith(`${fieldName}: "`) || fieldLine.startsWith(`${fieldName}: "`)) {
+    let textContent = '';
+    
+    // Handle both ASCII and Unicode quotes
+    if (fieldLine.startsWith(`${fieldName}: "`)) {
+      textContent = fieldLine.substring(`${fieldName}: "`.length);
+    } else if (fieldLine.startsWith(`${fieldName}: "`)) {
+      textContent = fieldLine.substring(`${fieldName}: "`.length);
+    }
+    
+    let lineIndex = startIndex;
+    
+    // Continue reading lines until we find the closing quote or hit another field
+    while (lineIndex < lines.length) {
+      // Check if we've found a closing quote
+      if (textContent.endsWith('"') || textContent.endsWith('"')) {
+        break;
+      }
+      
+      // Check if we've hit another field (defensive parsing)
+      if (lineIndex > startIndex && (
+        lines[lineIndex].startsWith('Type:') ||
+        lines[lineIndex].startsWith('Number:') ||
+        lines[lineIndex].startsWith('Text:') ||
+        lines[lineIndex].startsWith('Proof:') ||
+        lines[lineIndex].startsWith('###')
+      )) {
+        break;
+      }
+      
+      lineIndex++;
+      if (lineIndex < lines.length) {
+        textContent += '\n' + lines[lineIndex];
+      }
+    }
+    
+    // Clean up the content - remove malformed tags and trailing quotes
+    textContent = textContent
+      .replace(/\[\/text\]/gi, '') // Remove [/text] tags
+      .replace(/\[text\]/gi, '')   // Remove [text] tags
+      .replace(/\[\/proof\]/gi, '') // Remove [/proof] tags
+      .replace(/\[proof\]/gi, '')   // Remove [proof] tags
+      .trim();
+    
+    // Remove trailing quote if present
+    if (textContent.endsWith('"') || textContent.endsWith('"')) {
+      textContent = textContent.slice(0, -1);
+    }
+    
+    // Additional cleanup for common LLM artifacts - do this after quote removal
+    textContent = textContent
+      .replace(/^"|"$/g, '') // Remove leading/trailing quotes
+      .replace(/^"|"$/g, '') // Remove leading/trailing smart quotes
+      .replace(/\[\/?(text|proof)\]/gi, '') // Remove any remaining XML-like tags
+      .trim();
+    
+    if (textContent.length > 0) {
+      return {
+        text: textContent,
+        nextLineIndex: lineIndex + 1
+      };
+    }
+  }
+  
+  // Enhanced fallback: try to extract any text after the field name
+  const fallbackPattern = new RegExp(`^${fieldName}:\\s*(.+)$`, 's');
+  const fallbackMatch = fieldLine.match(fallbackPattern);
+  if (fallbackMatch) {
+    const fallbackText = fallbackMatch[1]
+      .replace(/^[""]|[""]$/g, '') // Remove surrounding quotes
+      .replace(/\[\/?(text|proof)\]/gi, '') // Remove XML-like tags
+      .trim();
+    
+    if (fallbackText.length > 0) {
+      console.warn(`⚠️ [parseQuotedField] Using fallback parsing for ${fieldName}: "${fallbackText}"`);
+      return {
+        text: fallbackText,
+        nextLineIndex: startIndex + 1
+      };
+    }
+  }
+  
+  throw new Error(`Missing or invalid ${fieldName} field: must be "${fieldName}: "<text>"" (supports both ASCII and Unicode quotes)`);
 } 

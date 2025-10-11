@@ -61,7 +61,10 @@ export const GameModel = types
     phase: types.optional(types.enumeration<GamePhase>(['setup', 'playing', 'paused', 'completed']), 'setup'),
     
     /** Snapshot history for time-travel debugging */
-    history: types.optional(types.array(SnapshotHistoryEntry), [])
+    history: types.optional(types.array(SnapshotHistoryEntry), []),
+    
+    /** Score entries for Rule 303 format reporting */
+    scoreEntries: types.optional(types.array(types.string), [])
   })
   .views(self => ({
     /**
@@ -89,6 +92,60 @@ export const GameModel = types
     },
     
     /**
+     * Check if a freeze proposal has been passed
+     * This implements the new victory condition per Stage 6.1 requirements
+     */
+    get freezeProposalPassed(): boolean {
+      // Find freeze proposals (Rule 207 style)
+      const freezeProposals = self.proposals.filter(p => 
+        p.status === 'passed' && 
+        p.type === 'Add' && 
+        p.ruleText.toLowerCase().includes('freeze') && 
+        p.ruleText.toLowerCase().includes('game ends')
+      );
+      
+      return freezeProposals.length > 0;
+    },
+    
+    /**
+     * Check if acceptance tests pass
+     * STUB: This is a placeholder that returns false until Stage 6.4 implementation
+     */
+    get acceptanceTestsPass(): boolean {
+      // TODO: Stage 6.4 - Implement real acceptance test validation
+      // This should check if the current ruleset satisfies all published acceptance tests
+      console.log('🧪 [GameModel] acceptanceTestsPass called - returning false (stub implementation)');
+      return false;
+    },
+    
+    /**
+     * Check if the game has been won according to new victory conditions
+     * New logic: freeze proposal passed AND acceptance tests pass
+     * Legacy logic: player reaches victory target (for backward compatibility)
+     */
+    get isGameWon(): boolean {
+      // New victory condition (Stage 6.1+)
+      const newVictoryCondition = self.freezeProposalPassed && self.acceptanceTestsPass;
+      
+      // Legacy victory condition (for backward compatibility until Stage 6.5)
+      const legacyVictoryCondition = !!self.winner;
+      
+      const gameWon = newVictoryCondition || legacyVictoryCondition;
+      
+      if (gameWon) {
+        console.log('🏆 [GameModel] Victory detected:', {
+          freezeProposalPassed: self.freezeProposalPassed,
+          acceptanceTestsPass: self.acceptanceTestsPass,
+          legacyWinner: self.winner?.name,
+          usedNewLogic: newVictoryCondition,
+          usedLegacyLogic: legacyVictoryCondition
+        });
+      }
+      
+      return gameWon;
+    },
+    
+    /**
      * Check if the game is currently running
      */
     get isRunning() {
@@ -103,10 +160,28 @@ export const GameModel = types
     },
     
     /**
+     * Get the next unique proposal ID
+     * Starts at 301 and increments from the highest existing proposal ID
+     */
+    get nextProposalId(): number {
+      if (self.proposals.length === 0) {
+        return 301; // Start proposal IDs at 301
+      }
+      
+      // Find the highest existing proposal ID and add 1
+      const maxId = Math.max(...self.proposals.map(p => p.id));
+      return Math.max(maxId + 1, 301); // Ensure we never go below 301
+    },
+    
+    /**
      * Get current game snapshot for MCP services
      */
     get gameSnapshot() {
-      return getSnapshot(self);
+      const snapshot = getSnapshot(self);
+      return {
+        ...snapshot,
+        proofStatement: self.config.promptP || ''
+      };
     }
   }))
   .actions(self => ({
@@ -139,8 +214,29 @@ export const GameModel = types
      * Add a proposal to the game
      */
     addProposal(proposalData: SnapshotIn<typeof ProposalModel>) {
+      // Check for duplicate proposal IDs
+      const existingProposal = self.proposals.find(p => p.id === proposalData.id);
+      if (existingProposal) {
+        throw new Error(`Proposal with ID ${proposalData.id} already exists`);
+      }
+      
       const proposal = ProposalModel.create(proposalData);
       self.proposals.push(proposal);
+    },
+    
+    /**
+     * Create a proposal with an automatically generated unique ID
+     */
+    createProposal(proposalData: Omit<SnapshotIn<typeof ProposalModel>, 'id'>) {
+      const proposalWithId = {
+        ...proposalData,
+        id: self.nextProposalId
+      };
+      
+      const proposal = ProposalModel.create(proposalWithId);
+      self.proposals.push(proposal);
+      
+      return proposal;
     },
     
     /**
@@ -211,9 +307,9 @@ export const GameModel = types
      * Check victory condition and transition to completed if met
      */
     checkVictoryCondition() {
-      const winner = self.winner;
-      if (winner && self.phase === 'playing') {
+      if (self.isGameWon && self.phase === 'playing') {
         self.phase = 'completed';
+        console.log('🏁 [GameModel] Game completed - victory condition met');
       }
     },
     
@@ -291,6 +387,99 @@ export const GameModel = types
     },
     
     /**
+     * Load rules from the loadInitialRules utility
+     * This replaces any existing rules with the canonical ruleset plus Prompt P
+     */
+    loadFromRules(ruleSnapshots: Array<{ id: number; text: string; mutable: boolean }>) {
+      if (self.phase !== 'setup') {
+        throw new Error('Can only load rules during setup phase');
+      }
+
+      // Clear existing rules
+      self.rules.clear();
+
+      // Add all provided rules
+      for (const ruleSnapshot of ruleSnapshots) {
+        this.addRule(ruleSnapshot);
+      }
+
+      console.log(`📋 [GameModel] Loaded ${ruleSnapshots.length} rules from loadInitialRules`);
+      console.log(`📋 [GameModel] Prompt P: "${self.config.promptP}"`);
+    },
+
+    /**
+     * Set the game phase - Stage 6.5 method for tests
+     */
+    setPhase(newPhase: GamePhase) {
+      self.phase = newPhase;
+      console.log(`🎮 [GameModel] Phase changed to: ${newPhase}`);
+    },
+
+    /**
+     * Set the turn number - helper method for tests
+     */
+    setTurn(turnNumber: number) {
+      self.turn = turnNumber;
+    },
+
+    /**
+     * Update player counters per Rules 301-303 - Stage 6.5 implementation
+     */
+    updatePlayerCounters(proposalId: number) {
+      const proposal = self.proposals.find(p => p.id === proposalId);
+      if (!proposal) {
+        console.warn(`⚠️ [GameModel] updatePlayerCounters: Proposal ${proposalId} not found`);
+        return;
+      }
+
+      // Update proposer counters
+      const proposer = self.players.find(p => p.id === proposal.proposerId);
+      if (proposer && proposal.status === 'passed') {
+        proposer.incrementProposalCounter(1); // Pass +1 delta for successful proposal
+      }
+
+      // Update voter accuracy counters
+      for (const vote of proposal.votes) {
+        const voter = self.players.find(p => p.id === vote.voterId); // Use voterId, not playerId
+        if (voter) {
+          const wasAccurate = (vote.choice === 'FOR' && proposal.status === 'passed') ||
+                            (vote.choice === 'AGAINST' && proposal.status === 'failed');
+          voter.recordVoteAccuracy(wasAccurate);
+        }
+      }
+
+      // Apply missed vote penalties (-10 points each)
+      const voterIds = new Set(proposal.votes.map(v => v.voterId)); // Use voterId
+      for (const player of self.players) {
+        if (!voterIds.has(player.id) && player.id !== proposal.proposerId) {
+          player.applyMissedVotePenalty();
+        }
+      }
+
+      console.log(`📊 [GameModel] Updated player counters for proposal ${proposalId}`);
+    },
+
+    /**
+     * Append a score entry in Rule 303 format - Stage 6.5 implementation
+     */
+    appendScoreEntry() {
+      const playerEntries = self.players.map(player => {
+        const pointsDisplay = player.points >= 0 ? `⭐${player.points}pts` : `⭐${player.points}pts`;
+        return `${player.name} ${pointsDisplay} (${player.proposalsPassed} passed)`;
+      }).join(' | ');
+
+      // Count proposals in this turn
+      const turnProposals = self.proposals.filter(p => p.turn === self.turn);
+      const passedCount = turnProposals.filter(p => p.status === 'passed').length;
+      const failedCount = turnProposals.filter(p => p.status === 'failed').length;
+
+      const entry = `Turn ${self.turn} — ${playerEntries} — ${passedCount} proposals passed, ${failedCount} failed`;
+      self.scoreEntries.push(entry);
+      
+      console.log(`📝 [GameModel] Appended score entry: ${entry}`);
+    },
+
+    /**
      * Generate the final score report
      */
     generateScoreReport(): string {
@@ -314,6 +503,111 @@ export const GameModel = types
       report += `- Adopted Proposals: ${self.proposals.filter(p => p.status === 'passed').length}\n`;
       report += `- Victory Target: ${self.config.victoryTarget} points\n`;
       
+      // Add Rule 303 format score entries if available
+      if (self.scoreEntries.length > 0) {
+        report += '\n## Rule 303 Score Entries\n\n';
+        for (const entry of self.scoreEntries) {
+          report += `- ${entry}\n`;
+        }
+      }
+      
       return report;
     }
   })); 
+
+/**
+ * Export type definitions for external use
+ */
+export type IGameModel = Instance<typeof GameModel>;
+export type GameSnapshot = SnapshotOut<typeof GameModel>;
+export type GameModelInput = SnapshotIn<typeof GameModel>;
+
+/**
+ * Factory function to create a new game with custom ruleset and configuration
+ * 
+ * This is the primary factory for creating games with custom rules and settings.
+ * It replaces the hard-coded bootstrap process and allows for flexible game creation.
+ * 
+ * @param options - Game creation options
+ * @param options.ruleset - RuleSetModel instance with rules to load
+ * @param options.config - GameConfigModel instance with configuration
+ * @param options.players - Optional array of players to add immediately
+ * @returns New game model instance ready for setup
+ * 
+ * @example
+ * ```typescript
+ * import { createGame } from './models/GameModel';
+ * import { createRuleSet } from './models/RuleSetModel';
+ * import { createGameConfig } from './models/GameConfigModel';
+ * 
+ * const ruleset = createRuleSet([
+ *   { id: 101, text: "All players must follow the rules.", mutable: false }
+ * ]);
+ * 
+ * const config = createGameConfig({ 
+ *   promptP: "Be strategic but fair", 
+ *   turnDelayMs: 500 
+ * });
+ * 
+ * const game = createGame({ ruleset, config });
+ * ```
+ */
+export function createGame(options: {
+  ruleset: import('./RuleSetModel').IRuleSet;
+  config: import('./GameConfigModel').IGameConfig;
+  players?: Array<{
+    id: string;
+    name: string;
+    icon: string;
+    llmEndpoint: string;
+  }>;
+}): IGameModel {
+  const { ruleset, config, players = [] } = options;
+
+  // Validate inputs
+  if (!ruleset) {
+    throw new Error('Ruleset is required to create a game');
+  }
+  
+  if (!config) {
+    throw new Error('Configuration is required to create a game');
+  }
+
+  // Validate the ruleset and config
+  ruleset.validateAndThrow();
+  config.validateAndThrow();
+
+  // Create the game model
+  const game = GameModel.create({
+    config: getSnapshot(config) as GameConfig,
+    players: [],
+    rules: [],
+    proposals: [],
+    turn: 0,
+    phase: 'setup',
+    history: [],
+    scoreEntries: []
+  });
+
+  // Load rules from the ruleset
+  const ruleSnapshots = ruleset.sortedRules.map(rule => ({
+    id: rule.id,
+    text: rule.text,
+    mutable: rule.mutable
+  }));
+  
+  game.loadFromRules(ruleSnapshots);
+
+  // Add players if provided
+  for (const playerData of players) {
+    game.addPlayer({
+      ...playerData,
+      points: 0,
+      isActive: false
+    });
+  }
+
+  console.log(`🎮 [createGame] Created game with ${ruleSnapshots.length} rules and ${players.length} players`);
+  
+  return game;
+} 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { GamePackager } from './GamePackager';
-import { GameModel } from '../models/GameModel';
-import { DEFAULT_CONFIG } from '../config';
+import { GameModel, type IGameModel } from '../models/GameModel';
+import { DEFAULT_CONFIG, getGameConfig } from '../config';
 
 // Mock URL.createObjectURL and URL.revokeObjectURL for test environment
 Object.defineProperty(globalThis, 'URL', {
@@ -13,22 +13,27 @@ Object.defineProperty(globalThis, 'URL', {
 });
 
 describe('GamePackager', () => {
-  let gameModel: typeof GameModel.Type;
+  let gameModel: IGameModel;
   let packager: GamePackager;
 
   beforeEach(() => {
-    // Create a completed game setup
+    packager = new GamePackager();
+    
+    // Create empty game model
     gameModel = GameModel.create({
-      config: DEFAULT_CONFIG,
-      players: [],
+      config: {
+        ...DEFAULT_CONFIG,
+        promptP: 'You are a strategic AI player in Nomic. Make fair but competitive proposals.'
+      },
       rules: [],
+      players: [],
       proposals: [],
       turn: 0,
       phase: 'setup',
       history: []
     });
-
-    // Add players
+    
+    // Add players using MST actions
     gameModel.addPlayer({
       id: 'player1',
       name: 'Alice',
@@ -37,73 +42,288 @@ describe('GamePackager', () => {
       points: 105,
       isActive: false
     });
-
+    
     gameModel.addPlayer({
       id: 'player2',
-      name: 'Bob',
+      name: 'Bob', 
       icon: '🦾',
       llmEndpoint: 'http://localhost:3002',
       points: 85,
       isActive: false
     });
-
+    
     gameModel.addPlayer({
       id: 'player3',
       name: 'Charlie',
-      icon: '🧠',
+      icon: '🧠', 
       llmEndpoint: 'http://localhost:3003',
       points: 60,
       isActive: false
     });
-
-    // Add initial rules
+    
+    // Add rules using MST actions
     gameModel.addRule({
       id: 101,
       text: 'All players must abide by the rules.',
       mutable: false
     });
-
+    
     gameModel.addRule({
       id: 102,
       text: 'The first player to reach 100 points wins.',
       mutable: false
     });
-
+    
     gameModel.addRule({
       id: 201,
       text: 'Players may form alliances.',
       mutable: true
     });
-
-    // Add some proposals
+    
+    // Add proposals using MST actions
     gameModel.addProposal({
       id: 1,
       proposerId: 'player1',
       type: 'Add',
       ruleNumber: 301,
       ruleText: 'New players may join with majority approval.',
+      proof: 'Test proof statement for proposal 1',
       status: 'passed',
       votes: [],
       timestamp: Date.now() - 3600000
     });
-
+    
     gameModel.addProposal({
       id: 2,
       proposerId: 'player2',
       type: 'Amend',
       ruleNumber: 201,
       ruleText: 'Players may form alliances lasting no more than 5 turns.',
+      proof: 'Test proof statement for proposal 2',
       status: 'failed',
       votes: [],
       timestamp: Date.now() - 1800000
     });
+    
+    // Set turn and phase
+    gameModel.setTurn(15);
+    gameModel.setPhase('completed');
+  });
 
-    // Set game to completed state using MST action
-    // Alice has 105 points which exceeds the 100 point victory target
-    gameModel.setupGame(); // Set to playing first
-    gameModel.checkVictoryCondition(); // This will set to completed since Alice has 105 points
+  describe('Prompt P integration', () => {
+    it('should include Prompt P banner in rulebook when present', () => {
+      const rulebook = packager.generateRulebook(gameModel);
+      
+      expect(rulebook).toContain('## 🎯 Prompt P (AI Instructions)');
+      expect(rulebook).toContain('You are a strategic AI player in Nomic');
+      expect(rulebook).toContain('```');
+      expect(rulebook).toContain('*The following instructions guided AI player behavior throughout this game:*');
+    });
 
-    packager = new GamePackager();
+    it('should not include Prompt P banner when not present', () => {
+      // Create game model without Prompt P
+      const configWithoutPromptP = {
+        ...getGameConfig(),
+        promptP: ''
+      };
+      
+      const gameModelWithoutPromptP = GameModel.create({
+        config: configWithoutPromptP,
+        rules: [],
+        players: [],
+        proposals: [],
+        turn: 1,
+        phase: 'setup',
+        history: []
+      });
+      
+      gameModelWithoutPromptP.addPlayer({
+        id: 'alice',
+        name: 'Alice',
+        icon: '🤖',
+        llmEndpoint: 'http://localhost:3001',
+        points: 100,
+        isActive: false
+      });
+      
+      gameModelWithoutPromptP.setPhase('completed');
+
+      const rulebook = packager.generateRulebook(gameModelWithoutPromptP);
+      
+      expect(rulebook).not.toContain('## 🎯 Prompt P (AI Instructions)');
+      expect(rulebook).not.toContain('You are a strategic AI player');
+    });
+
+    it('should generate PROMPT_P.txt file content correctly', () => {
+      const promptPContent = packager.generatePromptPFile(gameModel);
+      
+      expect(promptPContent).toContain('PROMPT P - AI PLAYER INSTRUCTIONS');
+      expect(promptPContent).toContain('===================================');
+      expect(promptPContent).toContain('You are a strategic AI player in Nomic');
+      expect(promptPContent).toContain('PROMPT P CONTENT:');
+      expect(promptPContent).toContain('Total Turns: 15');
+      expect(promptPContent).toContain('Total Players: 3');
+      expect(promptPContent).toContain('Victory Target: 100 points');
+      expect(promptPContent).toContain('automatically injected into every AI agent request');
+    });
+
+    it('should handle missing Prompt P in PROMPT_P.txt file', () => {
+      // Create game model without Prompt P
+      const configWithoutPromptP = {
+        ...getGameConfig(),
+        promptP: ''
+      };
+      
+      const gameModelWithoutPromptP = GameModel.create({
+        config: configWithoutPromptP,
+        rules: [],
+        players: [],
+        proposals: [],
+        turn: 1,
+        phase: 'setup',
+        history: []
+      });
+      
+      gameModelWithoutPromptP.addPlayer({
+        id: 'alice',
+        name: 'Alice',
+        icon: '🤖',
+        llmEndpoint: 'http://localhost:3001',
+        points: 100,
+        isActive: false
+      });
+      
+      gameModelWithoutPromptP.setPhase('completed');
+
+      const promptPContent = packager.generatePromptPFile(gameModelWithoutPromptP);
+      
+      expect(promptPContent).toContain('PROMPT P - AI PLAYER INSTRUCTIONS');
+      expect(promptPContent).toContain('No Prompt P was provided for this game');
+    });
+
+    it('should generate game-stats.json with complete structure', () => {
+      const gameStatsContent = packager.generateGameStatsFile(gameModel);
+      const gameStats = JSON.parse(gameStatsContent);
+      
+      // Check top-level structure
+      expect(gameStats).toHaveProperty('metadata');
+      expect(gameStats).toHaveProperty('players');
+      expect(gameStats).toHaveProperty('rules');
+      expect(gameStats).toHaveProperty('proposals');
+      expect(gameStats).toHaveProperty('performance');
+      expect(gameStats).toHaveProperty('configuration');
+      
+      // Check metadata
+      expect(gameStats.metadata.gameCompleted).toBe(true);
+      expect(gameStats.metadata.gameVersion).toBe('1.0.0');
+      expect(gameStats.metadata.totalTurns).toBe(15);
+      expect(gameStats.metadata.gameDurationMinutes).toBeGreaterThanOrEqual(0);
+      
+      // Check players data
+      expect(gameStats.players.count).toBe(3);
+      expect(gameStats.players.winner).toBe('Alice');
+      expect(gameStats.players.finalScore).toBe(105);
+      expect(gameStats.players.data).toHaveLength(3);
+      expect(gameStats.players.data[0].name).toBe('Alice'); // Should be sorted by points
+      expect(gameStats.players.data[0].finalPoints).toBe(105);
+      
+      // Check rules data
+      expect(gameStats.rules.initialRuleCount).toBe(3);
+      expect(gameStats.rules.immutableRules).toBe(2);
+      expect(gameStats.rules.mutableRules).toBe(1);
+      
+      // Check proposals data
+      expect(gameStats.proposals.total).toBe(2);
+      expect(gameStats.proposals.adopted).toBe(1);
+      expect(gameStats.proposals.failed).toBe(1);
+      expect(gameStats.proposals.adoptionRate).toBe(0.5);
+      
+      // Check configuration
+      expect(gameStats.configuration.victoryTarget).toBe(100);
+      expect(gameStats.configuration.hasPromptP).toBe(true);
+    });
+
+    it('should generate README.md with comprehensive instructions', () => {
+      const readmeContent = packager.generateReadmeSnippet(gameModel);
+      
+      expect(readmeContent).toContain('# Proof-Nomic Game Archive');
+      expect(readmeContent).toContain('## Game Summary');
+      expect(readmeContent).toContain('**Winner:** Alice (105 points)');
+      expect(readmeContent).toContain('**Total Players:** 3');
+      expect(readmeContent).toContain('**Total Turns:** 15');
+      
+      // Check package contents section
+      expect(readmeContent).toContain('## Package Contents');
+      expect(readmeContent).toContain('`RULEBOOK.md`');
+      expect(readmeContent).toContain('`SCORE_REPORT.md`');
+      expect(readmeContent).toContain('`game-stats.json`');
+      expect(readmeContent).toContain('`README.md`');
+      expect(readmeContent).toContain('`PROMPT_P.txt`');
+      
+      // Check how-to sections
+      expect(readmeContent).toContain('## How to Use This Archive');
+      expect(readmeContent).toContain('### For Game Analysis');
+      expect(readmeContent).toContain('### For Educational Purposes');
+      expect(readmeContent).toContain('### For Research');
+      expect(readmeContent).toContain('## Replay Instructions');
+      
+      // Check technical details
+      expect(readmeContent).toContain('## Technical Details');
+      expect(readmeContent).toContain('**Game Platform:** Daijo-bu Proof-Nomic v1.0');
+      expect(readmeContent).toContain('**Archive Format:** ZIP package');
+    });
+
+    it('should handle games without Proposal P in README', () => {
+      const configWithoutPromptP = {
+        ...gameModel.config,
+        promptP: ''
+      };
+      
+      const gameModelWithoutPromptP = { ...gameModel, config: configWithoutPromptP };
+      const readmeContent = packager.generateReadmeSnippet(gameModelWithoutPromptP);
+      
+      expect(readmeContent).toContain('# Proof-Nomic Game Archive');
+      expect(readmeContent).not.toContain('`PROMPT_P.txt`');
+    });
+
+    it('should handle games with no proposals in game-stats.json', () => {
+      // Create a game model with no proposals
+      const gameModelNoProposals = GameModel.create({
+        config: gameModel.config,
+        rules: [],
+        players: [],
+        proposals: [], // No proposals
+        turn: 1,
+        phase: 'setup',
+        history: []
+      });
+      
+      gameModelNoProposals.addPlayer({
+        id: 'player1',
+        name: 'Alice',
+        icon: '🤖',
+        llmEndpoint: 'http://localhost:3001',
+        points: 100,
+        isActive: false
+      });
+      
+      gameModelNoProposals.addRule({
+        id: 101,
+        text: 'Test rule',
+        mutable: false
+      });
+      
+      gameModelNoProposals.setPhase('completed');
+      
+      const gameStatsContent = packager.generateGameStatsFile(gameModelNoProposals);
+      const gameStats = JSON.parse(gameStatsContent);
+      
+      expect(gameStats.metadata.gameDurationMinutes).toBe(0);
+      expect(gameStats.proposals.total).toBe(0);
+      expect(gameStats.proposals.adoptionRate).toBe(0);
+      expect(gameStats.performance.turnsPerHour).toBe(0);
+      expect(gameStats.performance.proposalsPerTurn).toBe(0);
+    });
   });
 
   describe('rulebook generation', () => {
@@ -163,10 +383,10 @@ describe('GamePackager', () => {
       const scoreReport = packager.generateScoreReport(gameModel);
       
       expect(scoreReport).toContain('## Game Statistics');
-      expect(scoreReport).toContain('- Total Turns:'); // Don't assert exact turn count since setupGame() randomizes
-      expect(scoreReport).toContain('- Total Proposals: 2');
-      expect(scoreReport).toContain('- Adopted Proposals: 1');
-      expect(scoreReport).toContain('- Victory Target: 100 points');
+      expect(scoreReport).toContain('**Total Turns:**'); // Don't assert exact turn count since setupGame() randomizes
+      expect(scoreReport).toContain('**Total Proposals:** 2');
+      expect(scoreReport).toContain('**Adopted Proposals:** 1');
+      expect(scoreReport).toContain('**Victory Target:** 100 points');
     });
 
     it('should crown the winner with trophy emoji', () => {
@@ -199,12 +419,15 @@ describe('GamePackager', () => {
       expect(packageData.size).toBeGreaterThan(0);
     });
 
-    it('should include both files in package', async () => {
+    it('should include all required files in package', async () => {
       const packageData = await packager.createGamePackage(gameModel);
       
-      expect(packageData.contents).toHaveLength(2);
+      expect(packageData.contents).toHaveLength(5); // RULEBOOK.md, SCORE_REPORT.md, game-stats.json, README.md, PROMPT_P.txt
       expect(packageData.contents).toContain('RULEBOOK.md');
       expect(packageData.contents).toContain('SCORE_REPORT.md');
+      expect(packageData.contents).toContain('game-stats.json');
+      expect(packageData.contents).toContain('README.md');
+      expect(packageData.contents).toContain('PROMPT_P.txt');
     });
 
     it('should include metadata in package', async () => {
@@ -248,30 +471,36 @@ describe('GamePackager', () => {
       // Create a fresh game model in playing phase
       const playingGame = GameModel.create({
         config: DEFAULT_CONFIG,
-        players: [{
-          id: 'player1',
-          name: 'Alice',
-          icon: '🤖',
-          llmEndpoint: 'http://localhost:3001',
-          points: 50, // Below victory condition
-          isActive: false
-        }, {
-          id: 'player2',
-          name: 'Bob',
-          icon: '🦾',
-          llmEndpoint: 'http://localhost:3002',
-          points: 30,
-          isActive: false
-        }],
-        rules: [{
-          id: 101,
-          text: 'Test rule',
-          mutable: false
-        }],
+        players: [],
+        rules: [],
         proposals: [],
         turn: 0,
         phase: 'setup',
         history: []
+      });
+      
+      playingGame.addPlayer({
+        id: 'player1',
+        name: 'Alice',
+        icon: '🤖',
+        llmEndpoint: 'http://localhost:3001',
+        points: 50, // Below victory condition
+        isActive: false
+      });
+      
+      playingGame.addPlayer({
+        id: 'player2',
+        name: 'Bob',
+        icon: '🦾',
+        llmEndpoint: 'http://localhost:3002',
+        points: 30,
+        isActive: false
+      });
+      
+      playingGame.addRule({
+        id: 101,
+        text: 'Test rule',
+        mutable: false
       });
       
       playingGame.setupGame(); // Sets to playing phase
@@ -284,16 +513,20 @@ describe('GamePackager', () => {
       const emptyPlayersGame = GameModel.create({
         config: DEFAULT_CONFIG,
         players: [], // No players
-        rules: [{
-          id: 101,
-          text: 'Test rule',
-          mutable: false
-        }],
+        rules: [],
         proposals: [],
         turn: 0,
-        phase: 'completed', // Completed but no players
+        phase: 'setup',
         history: []
       });
+      
+      emptyPlayersGame.addRule({
+        id: 101,
+        text: 'Test rule',
+        mutable: false
+      });
+      
+      emptyPlayersGame.setPhase('completed'); // Completed but no players
       
       expect(() => packager.validateGameForPackaging(emptyPlayersGame)).toThrow('Game must have players');
     });
@@ -302,20 +535,24 @@ describe('GamePackager', () => {
       // Create a fresh game model without rules
       const emptyRulesGame = GameModel.create({
         config: DEFAULT_CONFIG,
-        players: [{
-          id: 'player1',
-          name: 'Alice',
-          icon: '🤖',
-          llmEndpoint: 'http://localhost:3001',
-          points: 105,
-          isActive: false
-        }],
+        players: [],
         rules: [], // No rules
         proposals: [],
         turn: 0,
-        phase: 'completed', // Completed but no rules
+        phase: 'setup',
         history: []
       });
+      
+      emptyRulesGame.addPlayer({
+        id: 'player1',
+        name: 'Alice',
+        icon: '🤖',
+        llmEndpoint: 'http://localhost:3001',
+        points: 105,
+        isActive: false
+      });
+      
+      emptyRulesGame.setPhase('completed'); // Completed but no rules
       
       expect(() => packager.validateGameForPackaging(emptyRulesGame)).toThrow('Game must have rules');
     });
