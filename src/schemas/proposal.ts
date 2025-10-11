@@ -210,6 +210,7 @@ export function parseProposalMarkdownWithoutId(markdown: string): ProposalWithou
  * 
  * Handles both ASCII quotes (") and Unicode smart quotes ("") from LLMs.
  * Supports multi-line content within quotes.
+ * Enhanced to handle malformed LLM output including XML-like tags.
  * 
  * @param lines - Array of markdown lines
  * @param startIndex - Line index to start parsing from
@@ -229,8 +230,11 @@ function parseQuotedField(lines: string[], startIndex: number, fieldName: string
   // Try simple single-line match first
   let textMatch = fieldLine.match(fieldPattern);
   if (textMatch) {
+    const cleanedText = textMatch[1]
+      .replace(/\[\/?(text|proof)\]/gi, '') // Remove XML-like tags
+      .trim();
     return {
-      text: textMatch[1].trim(),
+      text: cleanedText,
       nextLineIndex: startIndex + 1
     };
   }
@@ -238,13 +242,16 @@ function parseQuotedField(lines: string[], startIndex: number, fieldName: string
   // Try Unicode smart quotes
   textMatch = fieldLine.match(smartQuotePattern);
   if (textMatch) {
+    const cleanedText = textMatch[1]
+      .replace(/\[\/?(text|proof)\]/gi, '') // Remove XML-like tags
+      .trim();
     return {
-      text: textMatch[1].trim(),
+      text: cleanedText,
       nextLineIndex: startIndex + 1
     };
   }
 
-  // Try multi-line parsing
+  // Try multi-line parsing with enhanced error recovery
   if (fieldLine.startsWith(`${fieldName}: "`) || fieldLine.startsWith(`${fieldName}: "`)) {
     let textContent = '';
     
@@ -257,20 +264,72 @@ function parseQuotedField(lines: string[], startIndex: number, fieldName: string
     
     let lineIndex = startIndex;
     
-    // Continue reading lines until we find the closing quote
-    while (lineIndex < lines.length && !textContent.endsWith('"') && !textContent.endsWith('"')) {
+    // Continue reading lines until we find the closing quote or hit another field
+    while (lineIndex < lines.length) {
+      // Check if we've found a closing quote
+      if (textContent.endsWith('"') || textContent.endsWith('"')) {
+        break;
+      }
+      
+      // Check if we've hit another field (defensive parsing)
+      if (lineIndex > startIndex && (
+        lines[lineIndex].startsWith('Type:') ||
+        lines[lineIndex].startsWith('Number:') ||
+        lines[lineIndex].startsWith('Text:') ||
+        lines[lineIndex].startsWith('Proof:') ||
+        lines[lineIndex].startsWith('###')
+      )) {
+        break;
+      }
+      
       lineIndex++;
       if (lineIndex < lines.length) {
         textContent += '\n' + lines[lineIndex];
       }
     }
     
-    // Remove trailing quote
+    // Clean up the content - remove malformed tags and trailing quotes
+    textContent = textContent
+      .replace(/\[\/text\]/gi, '') // Remove [/text] tags
+      .replace(/\[text\]/gi, '')   // Remove [text] tags
+      .replace(/\[\/proof\]/gi, '') // Remove [/proof] tags
+      .replace(/\[proof\]/gi, '')   // Remove [proof] tags
+      .trim();
+    
+    // Remove trailing quote if present
     if (textContent.endsWith('"') || textContent.endsWith('"')) {
       textContent = textContent.slice(0, -1);
+    }
+    
+    // Additional cleanup for common LLM artifacts - do this after quote removal
+    textContent = textContent
+      .replace(/^"|"$/g, '') // Remove leading/trailing quotes
+      .replace(/^"|"$/g, '') // Remove leading/trailing smart quotes
+      .replace(/\[\/?(text|proof)\]/gi, '') // Remove any remaining XML-like tags
+      .trim();
+    
+    if (textContent.length > 0) {
       return {
-        text: textContent.trim(),
+        text: textContent,
         nextLineIndex: lineIndex + 1
+      };
+    }
+  }
+  
+  // Enhanced fallback: try to extract any text after the field name
+  const fallbackPattern = new RegExp(`^${fieldName}:\\s*(.+)$`, 's');
+  const fallbackMatch = fieldLine.match(fallbackPattern);
+  if (fallbackMatch) {
+    const fallbackText = fallbackMatch[1]
+      .replace(/^[""]|[""]$/g, '') // Remove surrounding quotes
+      .replace(/\[\/?(text|proof)\]/gi, '') // Remove XML-like tags
+      .trim();
+    
+    if (fallbackText.length > 0) {
+      console.warn(`⚠️ [parseQuotedField] Using fallback parsing for ${fieldName}: "${fallbackText}"`);
+      return {
+        text: fallbackText,
+        nextLineIndex: startIndex + 1
       };
     }
   }

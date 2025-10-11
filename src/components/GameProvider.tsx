@@ -171,14 +171,19 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP })
    * Set up a new game with default players and rules
    */
   const setupNewGame = () => {
-    // Add players
+    // Get the current agent type from configuration
+    const config = getGameConfig();
+    const agentType = config.agent.type;
+    
+    // Add players with correct agentType
     gameModel.addPlayer({
       id: 'alice',
       name: 'Alice',
       icon: '🤖',
       llmEndpoint: 'http://localhost:3001',
       points: 0,
-      isActive: false
+      isActive: false,
+      agentType
     });
 
     gameModel.addPlayer({
@@ -187,7 +192,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP })
       icon: '🦾',
       llmEndpoint: 'http://localhost:3002',
       points: 0,
-      isActive: false
+      isActive: false,
+      agentType
     });
 
     gameModel.addPlayer({
@@ -196,8 +202,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children, promptP })
       icon: '🧠',
       llmEndpoint: 'http://localhost:3003',
       points: 0,
-      isActive: false
+      isActive: false,
+      agentType
     });
+
+    console.log(`🎮 [GameProvider] Created players with agentType: ${agentType}`);
 
     // Load initial rules from JSON with Prompt P injection
     console.log('📋 [GameProvider] Loading initial rules with promptP:', promptP);

@@ -246,6 +246,20 @@ Proof: "This rule enhances gameplay while maintaining consistency with existing 
     });
   });
 
+  it('should handle malformed LLM output with XML-like tags', () => {
+    const malformedMarkdown = `### Proposal
+Type: Amend
+Number: 303
+Text: "Immediately after updating all metrics the Judge must append a one-line entry to SCORE_REPORT.md in the format specified.[/text]"
+Proof: "This proposal directly addresses a critical oversight in the current system by providing clear reporting requirements.[/proof]"`;
+
+    const result = parseProposalMarkdownWithoutId(malformedMarkdown);
+    expect(result.text).toBe('Immediately after updating all metrics the Judge must append a one-line entry to SCORE_REPORT.md in the format specified.');
+    expect(result.proof).toBe('This proposal directly addresses a critical oversight in the current system by providing clear reporting requirements.');
+    expect(result.type).toBe('Amend');
+    expect(result.number).toBe(303);
+  });
+
   it('should handle different proposal types with proof sections', () => {
     const testCases = [
       { type: 'Add', number: 301 },

@@ -101,11 +101,14 @@ export class OllamaAgent implements IAgent {
 
     console.log('🦙 [Ollama] Generating proposal...');
     console.log('🦙 [Ollama] Request type: Proposal generation');
+    console.log('🦙 [Ollama] THIS IS DEFINITELY THE OLLAMA AGENT, NOT MOCK!');
+    console.log('🦙🦙🦙 [Ollama] REAL OLLAMA CALL STARTING 🦙🦙🦙');
     
     const systemPrompt = this.buildSystemPrompt(prompt || 'Generate a rule proposal', gameSnapshot);
     const userPrompt = this.buildProposalPrompt(gameSnapshot);
 
     try {
+      console.log('🦙 [Ollama] About to call Ollama API at:', this.baseUrl);
       const response = await this.callOllama([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -116,9 +119,11 @@ export class OllamaAgent implements IAgent {
       console.log('🔍 [Ollama] Raw response:', response);
       const formatted = this.formatProposalResponse(response);
       console.log('🔍 [Ollama] Formatted response:', formatted);
+      console.log('🦙🦙🦙 [Ollama] REAL OLLAMA CALL COMPLETED 🦙🦙🦙');
       return formatted;
     } catch (error) {
       console.error('❌ [Ollama] Proposal generation failed:', error);
+      console.error('❌❌❌ [Ollama] OLLAMA FAILED - THIS MIGHT CAUSE FALLBACK TO MOCK! ❌❌❌');
       throw new Error(`Ollama proposal generation failed: ${error}`);
     }
   }
@@ -229,7 +234,15 @@ export class OllamaAgent implements IAgent {
     const promptPSection = gameSnapshot.proofStatement ? 
       `\nPROOF STATEMENT P:\n${gameSnapshot.proofStatement}\n` : '';
     
-    return `${basePrompt}${promptPSection}
+    // DEBUG: Log Prompt P details
+    console.log('🔍 [Ollama Debug] Prompt P in gameSnapshot:', {
+      hasProofStatement: !!gameSnapshot.proofStatement,
+      proofStatementLength: gameSnapshot.proofStatement?.length || 0,
+      proofStatementPreview: gameSnapshot.proofStatement?.substring(0, 100) + '...' || 'N/A',
+      promptPSectionLength: promptPSection.length
+    });
+    
+    const systemPrompt = `${basePrompt}${promptPSection}
 
 You are playing Nomic, a game where players propose rule changes and vote on them.
 
@@ -254,6 +267,15 @@ IMPORTANT: Every proposal MUST include a Proof section per Rule 121. The proof s
 2. It maintains or improves likelihood of satisfying Prompt P
 
 Be strategic and consider the current game state.`;
+
+    // DEBUG: Log system prompt details
+    console.log('🔍 [Ollama Debug] System prompt details:', {
+      totalLength: systemPrompt.length,
+      includesPromptP: systemPrompt.includes('PROOF STATEMENT P:'),
+      promptPLocation: systemPrompt.indexOf('PROOF STATEMENT P:')
+    });
+
+    return systemPrompt;
   }
 
   /**

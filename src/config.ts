@@ -41,6 +41,23 @@ function getAgentTypeFromEnv(): 'openai' | 'ollama' | 'mock' {
   return 'mock';
 }
 
+/**
+ * Get appropriate timeout based on agent type
+ * Ollama agents need more time due to local processing
+ */
+function getTimeoutForAgentType(agentType: 'openai' | 'ollama' | 'mock'): number {
+  switch (agentType) {
+    case 'ollama':
+      return 25000; // 25 seconds for Ollama (increased from 15s)
+    case 'openai':
+      return 15000; // 15 seconds for OpenAI
+    case 'mock':
+      return 5000;  // 5 seconds for mock agents
+    default:
+      return 15000; // Default fallback
+  }
+}
+
 export interface GameConfig {
   /** Victory target score as per Rule 102 */
   victoryTarget: number;
@@ -97,7 +114,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   forVoterPoints: 5,           // Scoring on adoption
   againstVoterPenalty: -5,     // Scoring on adoption  
   turnDelayMs: 200,            // Turn delay (default)
-  timeoutMs: 15000,            // Request timeout (increased for Ollama)
+  timeoutMs: getTimeoutForAgentType(getAgentTypeFromEnv()), // Auto-detect from environment
   warmupTurns: 5,              // Snapshot mode warmup
   snapshotMode: 'full',        // Start with full snapshots
   debugSnapshots: false,       // Production default
